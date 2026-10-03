@@ -212,3 +212,24 @@ without a key gets a 401.
 
   Several of the bugs above, including the Decimal webhook, the test pollution and the UI race, were
   found by those live checks, not by the unit tests.
+
+## Timeline and post-release fixes
+
+- **v0.1.0 took about 4.5 hours of wall-clock time** (10:00 AM to 2:30 PM on 2026-10-03), from the
+  first spec to the release. That covers the whole spec → plan → goal → self-paced loop, all ten
+  phases, and the docs.
+- After the agents had finished and I started using the app myself, I found **three issues
+  immediately**. Each was fixed (with regression tests) before tagging:
+  1. **Refund bug.** "Refund Acme Corp $120" produced four identical *full* $740 refund cards, and
+     confirming one really refunded $740 in the Stripe test account. Cause: the model omitted
+     `amount_cents`, which the tool treated as "refund everything". Fix: the amount is required
+     (`find_payments` exposes `refundable_cents` for an explicit full refund), identical pending
+     proposals are reused instead of duplicated, and Penny must describe the amount shown on the card.
+     Verified live: the same request now yields one "Partial refund of $120.00" card.
+  2. **Connect MCP instructions.** The panel was renamed from "Connect Claude" to **Connect MCP**, with
+     step-by-step setup for Claude Code, Claude Desktop and other MCP clients. While checking it I
+     also fixed a reply that rendered as a Markdown code block and widened the chat column.
+  3. **Phone responsiveness.** On phones the layout now uses a bottom tab bar (Chat, Today, Needs you,
+     Customers, MCP) with a full-height chat and pinned composer, 16px inputs (no iOS zoom), the
+     signed-in email in the header, a bottom-sheet conversation picker, and directional tab
+     transitions. Tablet and desktop are unchanged.
