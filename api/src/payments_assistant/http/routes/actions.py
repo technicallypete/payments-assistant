@@ -43,13 +43,15 @@ def _out(a: OwnerAction) -> ActionOut:
 async def list_actions(
     owner: Owner,
     session: Session,
+    state: State,
     status_filter: Literal["proposed", "all"] = "proposed",
 ) -> list[ActionOut]:
+    """Pending web proposals (default): still `proposed` and not yet past their expiry."""
     q = select(OwnerAction).where(
         OwnerAction.owner_id == owner.owner_id, OwnerAction.api_key_id.is_(None)
     )
     if status_filter == "proposed":
-        q = q.where(OwnerAction.status == "proposed")
+        q = q.where(OwnerAction.status == "proposed", OwnerAction.expires_at > state.clock())
     rows = (await session.execute(q.order_by(OwnerAction.created_at.desc()).limit(50))).scalars()
     return [_out(a) for a in rows]
 

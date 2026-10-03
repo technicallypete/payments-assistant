@@ -26,13 +26,14 @@ def get_chat_model(settings: Settings, *, purpose: str = "agent") -> BaseChatMod
     provider, _, model = spec.partition(":")
     if provider == "openrouter":
         extra_body: dict[str, Any] = {}
-        if settings.llm_reasoning_effort:
+        effort = (
+            settings.llm_summary_reasoning_effort
+            if purpose == "summary"
+            else settings.llm_reasoning_effort
+        )
+        if effort:
             # OpenRouter's unified reasoning control; "none" disables thinking for faster turns.
-            extra_body["reasoning"] = (
-                {"enabled": False}
-                if settings.llm_reasoning_effort == "none"
-                else {"effort": settings.llm_reasoning_effort}
-            )
+            extra_body["reasoning"] = {"enabled": False} if effort == "none" else {"effort": effort}
         return init_chat_model(
             model,
             model_provider="openai",

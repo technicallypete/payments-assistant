@@ -31,3 +31,11 @@ def test_reasoning_effort_mapping():
         "reasoning": {"effort": "low"}
     }
     assert get_chat_model(_settings()).extra_body is None
+
+
+def test_summary_reasoning_off_by_default_and_overridable():
+    assert get_chat_model(_settings(), purpose="summary").extra_body == {
+        "reasoning": {"enabled": False}
+    }
+    m = get_chat_model(_settings(llm_summary_reasoning_effort=""), purpose="summary")
+    assert m.extra_body is None

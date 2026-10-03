@@ -1,26 +1,183 @@
 @import "tailwindcss";
 
+/*
+ * Penny — "ledger" identity. Paper and ink, a ruled-ledger texture, money set in tabular mono.
+ * Colors are tokens; dark mode is deep ink with warm paper text.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --paper: #f6f0e4;
+  --paper-2: #efe6d4;
+  --card: #fbf7ef;
+  --ink: #1e1b16;
+  --ink-2: #4a443a;
+  --muted: #6f6656;
+  --rule: #d9cdb6;
+  --rule-strong: #c4b494;
+  --accent: #1f5c4a; /* ledger green */
+  --accent-ink: #f6f0e4;
+  --accent-soft: #dbe7df;
+  --margin: #b4412f; /* red margin rule / errors */
+  --margin-soft: #f3ddd5;
+  --gold: #a26b1c;
+  --gold-soft: #f1e2c4;
+  --focus: #2f6fd6;
+  --shadow: 0 1px 0 rgba(30, 27, 22, 0.06), 0 8px 24px -16px rgba(30, 27, 22, 0.35);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --paper: #14171c;
+    --paper-2: #1a1e25;
+    --card: #1d222a;
+    --ink: #efe7d6;
+    --ink-2: #cfc6b3;
+    --muted: #9b927f;
+    --rule: #2c323c;
+    --rule-strong: #3b4350;
+    --accent: #6fbf9e;
+    --accent-ink: #0f1a16;
+    --accent-soft: #1f3a31;
+    --margin: #e07a62;
+    --margin-soft: #3a221d;
+    --gold: #e0b061;
+    --gold-soft: #3a2f1c;
+    --focus: #8ab4ff;
+    --shadow: 0 1px 0 rgba(0, 0, 0, 0.3), 0 10px 30px -18px rgba(0, 0, 0, 0.8);
   }
 }
 
+@theme inline {
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-rule: var(--rule);
+  --color-rule-strong: var(--rule-strong);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-margin: var(--margin);
+  --color-margin-soft: var(--margin-soft);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+  --font-sans: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display-face), ui-serif, Georgia, serif;
+  --font-mono: var(--font-figures), ui-monospace, monospace;
+}
+
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+body {
+  font-family: var(--font-sans);
+  /* faint ledger rules across the page */
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 31px,
+    color-mix(in srgb, var(--rule) 45%, transparent) 31px,
+    color-mix(in srgb, var(--rule) 45%, transparent) 32px
+  );
+  background-attachment: fixed;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.font-display {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+}
+
+.money,
+.tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* A card sheet of ledger paper with a red margin rule. */
+.sheet {
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+}
+
+.sheet-ruled {
+  position: relative;
+  background-image:
+    linear-gradient(to right, transparent 26px, var(--margin) 26px, var(--margin) 27px, transparent 27px),
+    repeating-linear-gradient(to bottom, transparent 0, transparent 27px, var(--rule) 27px, var(--rule) 28px);
+  background-color: var(--card);
+}
+
+/* Assistant markdown */
+.prose-penny p {
+  margin: 0 0 0.6em;
+}
+.prose-penny p:last-child {
+  margin-bottom: 0;
+}
+.prose-penny strong {
+  font-weight: 650;
+  color: var(--ink);
+}
+.prose-penny ul,
+.prose-penny ol {
+  margin: 0.3em 0 0.6em 1.2em;
+}
+.prose-penny ul {
+  list-style: disc;
+}
+.prose-penny ol {
+  list-style: decimal;
+}
+.prose-penny code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--paper-2);
+  padding: 0.05em 0.3em;
+  border-radius: 4px;
+}
+
+@keyframes caret {
+  50% {
+    opacity: 0;
+  }
+}
+.caret::after {
+  content: "▍";
+  margin-left: 1px;
+  color: var(--accent);
+  animation: caret 1s steps(1) infinite;
+}
+
+@keyframes stamp {
+  0% {
+    transform: scale(1.4) rotate(-8deg);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1) rotate(-4deg);
+    opacity: 1;
+  }
+}
+.stamp {
+  animation: stamp 260ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .caret::after,
+  .stamp {
+    animation: none;
+  }
 }

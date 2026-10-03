@@ -69,3 +69,11 @@ async def test_other_owner_cannot_confirm(owner_client, client, admin_engine, ha
 
 async def test_unknown_action_404(owner_client):
     assert (await owner_client.post(f"/actions/{uuid4()}/confirm")).status_code == 404
+
+
+async def test_expired_proposals_drop_out_of_pending_list(owner_client, harness):
+    action_id = await _propose_refund(owner_client, harness)
+    assert [a["id"] for a in (await owner_client.get("/actions")).json()] == [action_id]
+    start = harness.state.clock()
+    harness.state.clock = lambda: start + timedelta(minutes=11)
+    assert (await owner_client.get("/actions")).json() == []

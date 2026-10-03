@@ -13,3 +13,8 @@ export function serverApiUrl(): string {
   }
   return url.replace(/\/+$/, "");
 }
+
+/** Public origin of this app (proxy Origin check, cookie Secure flag). */
+export function appOrigin(): string {
+  return (process.env.APP_ORIGIN ?? "http://localhost:3010").replace(/\/+$/, "");
+}

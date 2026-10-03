@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     llm_max_tool_hops: int = Field(6, ge=1, le=20)
     # OpenRouter reasoning control: "" = provider default, "none" = off, or low/medium/high.
     llm_reasoning_effort: str = ""
+    # Daily summaries need no tool planning; reasoning only adds latency (~25s first token on Kimi).
+    llm_summary_reasoning_effort: str = "none"
     # Per-request timeout and retries, so a stuck provider can't hang a chat turn indefinitely.
     llm_timeout_seconds: int = 45
     llm_max_retries: int = 1

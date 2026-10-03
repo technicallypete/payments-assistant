@@ -6,8 +6,8 @@ Tracks status against `docs/v0/goal.md`. Updated every loop iteration.
 
 | Limit | Cap | Used |
 |---|---|---|
-| Iterations | 15 | 5 |
-| OpenRouter spend / `llm_eval` runs | ~$4 / 6 runs (raised from ~$2 / 3 by the user) | 4 runs; ~$0.15 (owner's dashboard showed $0.11 / 32 requests before run 4) |
+| Iterations | 15 | 6 |
+| OpenRouter spend / `llm_eval` runs | ~$4 / 6 runs (raised from ~$2 / 3 by the user) | 4 runs; ~$0.20 incl. live smoke/browser tests (dashboard showed $0.11 / 32 requests before run 4) |
 | Repeated-failure streak | 3 | 0 |
 
 | Phase | Estimate | Time box (2×) | Status |
@@ -18,8 +18,8 @@ Tracks status against `docs/v0/goal.md`. Updated every loop iteration.
 | 3 Core + Stripe + seed | 50m | 100m | ✅ done (iteration 3) |
 | 4 Tools + LLM + owner agent | 45m | 90m | ✅ done (iteration 4) |
 | 5 Owner HTTP API + auth | 35m | 70m | ✅ done (iteration 5) |
-| 6 Next BFF + UI | 50m | 100m | next |
-| 7 Telegram bot | 35m | 70m | |
+| 6 Next BFF + UI | 50m | 100m | ✅ done (iteration 6) |
+| 7 Telegram bot | 35m | 70m | next |
 | 8 Stripe webhook | 25m | 50m | |
 | 9 Bonus: owner MCP | 35m | 70m | |
 | 10 Docs + submission | 20m | 40m | |
@@ -227,3 +227,50 @@ tests pass; core coverage **93%** (coverage now traces greenlets, which async SQ
 ruff clean. Live: login 200, `/customers` balances correct, summary streamed.
 
 **Next:** Phase 6 (Next BFF proxy + owner UI).
+
+### Iteration 6: Phase 6 (2026-10-03)
+
+The UI was built by a subagent; I did the BFF layer, the live/browser verification, and the fixes.
+
+**Built:**
+- BFF (`app/lib/bff.ts`, plain functions with an injected fetch; route files are thin):
+  `/api/auth/login` (the token goes only into the httpOnly `pa_session` cookie, SameSite=Lax, Secure
+  on https, expiry from the API; never in the body), `/api/auth/logout` (revokes upstream and clears the
+  cookie), and the catch-all `/api/[...path]` proxy (cookie → Bearer, client Authorization dropped,
+  Origin/Referer CSRF check on non-GET, allowlist `auth/me, conversations, actions, summaries,
+  handoffs, customers` so webhooks/docs stay internal, Set-Cookie stripped, unbuffered SSE
+  passthrough, `request.signal` forwarded for abort).
+- `lib/sse.ts` (fetch-body SSE reader), `lib/client.ts` (typed browser client, 401 → /login),
+  `lib/events.ts`, and `lib/api-types.ts` generated from `lib/openapi.json` (`bun run gen:api`).
+- UI (subagent): `/login`; dashboard with Chat (conversation list, streamed tokens with caret, tool
+  chips, inline Confirm/Cancel cards with countdown and result stamps, Stop, suggested prompts, pending
+  proposals restored), the Today panel (streamed summary + refresh), Needs you (handoffs ack/resolve),
+  and Customers (balances, Telegram badge, copy invite, Stripe sync). The "ledger" design: Fraunces +
+  Instrument Sans + IBM Plex Mono tabular money, paper/ink light and dark themes, ruled cards,
+  aria-live streaming, reduced motion. Screenshots are in `docs/screenshots/`.
+
+**Deviation:** the plan said msw for proxy tests. The proxy logic is plain functions with an
+injected `fetch`, tested directly, which is simpler and deterministic. The live checks below cover the
+real Next runtime.
+
+**Verified live (curl through Next + headless Chromium via the Playwright image):** login sets the
+cookie flags correctly with no token in the body; `/api/auth/me` 200 / 401 without cookie;
+cross-site POST 403; `/api/webhooks/stripe` 404; logout clears the cookie and later calls get 401; the
+summary streams token by token through Next (~60ms apart); the full UI renders in light, dark, and
+mobile; a real chat turn ("Refund Maya's last payment") streamed and showed the inline $415.00 refund
+card in 14s; Cancel produced a CANCELLED stamp and the DB status `cancelled`.
+
+**Found and fixed during verification:**
+- Summary first token took 28s (Kimi reasoning). Added `LLM_SUMMARY_REASONING_EFFORT` (default `none`):
+  first token 8s, total 10.6s.
+- A race: a click before the initial conversation load finished let the late load wipe the live turn
+  (the new proposal card was dropped). Fixed with a navigation guard plus `reset`/`set_pending` reducer
+  actions and pending dedupe. A component test reproduces it and fails without the guard.
+- The greeting was hard-coded "Morning." It's now time-aware (useSyncExternalStore, hydration-safe).
+  The mobile placeholder was shortened.
+- `GET /actions` returned expired proposals; it now filters by `expires_at > now`, with a test.
+- Rebuilt the app image (new deps); jsdom doesn't run under Bun, so component tests use happy-dom.
+
+**Verification:** Vitest **68 passed**, eslint clean, typecheck clean; Python **331 passed**; ruff clean.
+
+**Next:** Phase 7 (Telegram bot).
