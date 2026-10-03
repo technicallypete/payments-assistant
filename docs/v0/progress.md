@@ -443,3 +443,24 @@ written at or after the proposal) with their current status. A proposal past its
 the header says "needs your OK" only while open. Tests: an API integration test (proposed →
 expired → cancelled on reload) and a reducer test; verified in headless Chromium on the user's
 conversation (EXPIRED stamp under the reply).
+
+### Post-loop fix (2026-10-03): wrong refund amount + duplicate cards (user-reported)
+
+The user asked "refund acme corp $120". Penny's text said "$120 partial refund", but all four
+`propose_refund` calls omitted `amount_cents`, which the tool treated as **refund everything**. That
+produced four identical **$740** cards. The user confirmed one, so a full $740 test refund executed
+in Stripe (`re_3UMUJY…`, Acme's 8:54 AM charge). I cancelled the three leftover duplicates.
+Root causes and fixes:
+- **A dangerous default:** `amount_cents` is now **required**. `find_payments` returns
+  `refundable_cents`, so a full refund is an explicit choice, and params always store the exact
+  amount (what's shown is what executes).
+- **Duplicates:** `actions.propose` reuses an identical pending proposal (same owner/surface/
+  conversation/type/params). The tool returns `already_proposed: true` and emits no second card.
+  The UI reducer also ignores repeated card ids.
+- **Text vs card mismatch:** the tool result tells the model to describe the proposal from
+  `preview` and flag mismatches. The owner prompt now covers exact cents, full refunds, and no
+  repeated propose calls.
+- **UI not updating:** a confirmed (executed) action fires an event that refreshes the Today panel.
+Tests: missing amount → validation error (no proposal); partial preview and params; 3 identical calls →
+1 card / 1 row; reducer dedupe. Live: "refund acme corp $120" → exactly one card "Partial refund of
+$120.00 to Acme Corp", with matching text (cancelled afterwards).

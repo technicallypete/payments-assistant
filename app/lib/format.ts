@@ -29,3 +29,6 @@ export function greetingFor(hour: number): string {
   if (hour < 17) return "Afternoon.";
   return "Evening.";
 }
+
+/** Fired on window when an action executes in Stripe, so panels showing money can refresh. */
+export const MONEY_MOVED_EVENT = "penny:money-moved";

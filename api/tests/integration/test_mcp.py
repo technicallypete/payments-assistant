@@ -137,7 +137,9 @@ async def test_tool_errors_are_reported_not_raised(app, owner_key):
 async def test_propose_then_confirm_executes_once(app, owner_key, harness):
     _, key = owner_key
     async with mcp_session(app, key.key) as s:
-        proposal = await s.call_tool("propose_refund", {"charge_id": MAYA_LAST_CHARGE})
+        proposal = await s.call_tool(
+            "propose_refund", {"charge_id": MAYA_LAST_CHARGE, "amount_cents": 8200}
+        )
         assert harness.gateway.calls == []  # proposing moves no money
         action_id = proposal.structured_content["action_id"]
         done = await s.call_tool("confirm_action", {"action_id": action_id})
@@ -165,7 +167,9 @@ async def test_other_key_cannot_confirm_and_web_cannot_either(
     other = await _key(harness, owner_id, "second")
     async with mcp_session(app, key.key) as s:
         action_id = (
-            await s.call_tool("propose_refund", {"charge_id": MAYA_LAST_CHARGE})
+            await s.call_tool(
+                "propose_refund", {"charge_id": MAYA_LAST_CHARGE, "amount_cents": 8200}
+            )
         ).structured_content["action_id"]
     async with mcp_session(app, other.key) as s:
         r = await s.call_tool("confirm_action", {"action_id": action_id})
@@ -179,7 +183,9 @@ async def test_expired_proposal_reports_expired(app, owner_key, harness):
     _, key = owner_key
     async with mcp_session(app, key.key) as s:
         action_id = (
-            await s.call_tool("propose_refund", {"charge_id": MAYA_LAST_CHARGE})
+            await s.call_tool(
+                "propose_refund", {"charge_id": MAYA_LAST_CHARGE, "amount_cents": 8200}
+            )
         ).structured_content["action_id"]
         start = harness.state.clock()
         harness.state.clock = lambda: start + timedelta(minutes=11)
@@ -192,7 +198,9 @@ async def test_cancel_action(app, owner_key, harness):
     _, key = owner_key
     async with mcp_session(app, key.key) as s:
         action_id = (
-            await s.call_tool("propose_refund", {"charge_id": MAYA_LAST_CHARGE})
+            await s.call_tool(
+                "propose_refund", {"charge_id": MAYA_LAST_CHARGE, "amount_cents": 8200}
+            )
         ).structured_content["action_id"]
         r = await s.call_tool("cancel_action", {"action_id": action_id})
         after = await s.call_tool("confirm_action", {"action_id": action_id})

@@ -42,8 +42,13 @@ class ActionProposal(BaseModel):
     action_type: str
     preview: str
     expires_at: datetime
+    already_proposed: bool = (
+        False  # an identical proposal was still pending; reused, not duplicated
+    )
     note: str = (
-        "Proposed only. The owner sees Confirm/Cancel buttons; nothing happens until they confirm."
+        "Proposed only. The owner sees a Confirm/Cancel card showing exactly `preview`; nothing "
+        "happens until they confirm. Describe the proposal using the amounts in `preview`. If "
+        "`preview` doesn't match what the owner asked for, say so instead of claiming it does."
     )
 
 
@@ -64,13 +69,16 @@ async def _match_customers(ctx: ToolContext, query: str) -> list[CustomerInfo]:
 
 
 async def _record_proposal(ctx: ToolContext, action) -> ActionProposal:
+    reused = bool(getattr(action, "reused", False))
     proposal = ActionProposal(
         action_id=str(action.id),
         action_type=action.action_type,
         preview=action.preview,
         expires_at=action.expires_at,
+        already_proposed=reused,
     )
-    ctx.proposals.append(proposal)
+    if not reused:  # one card per proposal, however many times the model asks
+        ctx.proposals.append(proposal)
     return proposal
 
 
@@ -246,6 +254,7 @@ class PaymentOut(BaseModel):
     amount: str
     refunded: str
     refundable: str
+    refundable_cents: int  # pass this as amount_cents for a FULL refund
     status: str
     decline_reason: str | None
     when: str
@@ -285,6 +294,7 @@ async def find_payments(ctx: ToolContext, args: FindPaymentsIn) -> FindPaymentsO
                 refundable=format_money(
                     p.amount - p.amount_refunded if p.status == "succeeded" else 0, p.currency
                 ),
+                refundable_cents=p.amount - p.amount_refunded if p.status == "succeeded" else 0,
                 status=p.status,
                 decline_reason=p.decline_code or p.failure_code,
                 when=_local(ctx, p.occurred_at),
@@ -352,8 +362,14 @@ async def list_invoices(ctx: ToolContext, args: ListInvoicesIn) -> ListInvoicesO
 
 class ProposeRefundIn(BaseModel):
     charge_id: str = Field(description="The ch_... id from find_payments.")
-    amount_cents: int | None = Field(
-        None, gt=0, description="Partial refund in cents. Omit to refund everything refundable."
+    # Required on purpose: an omitted amount used to mean "refund everything", and a model that
+    # forgot the owner's "$120" silently proposed the full charge.
+    amount_cents: int = Field(
+        gt=0,
+        description=(
+            "Exact amount to refund, in cents: e.g. 12000 for $120. For a full refund pass the "
+            "payment's refundable_cents from find_payments."
+        ),
     )
 
 
@@ -376,7 +392,7 @@ async def propose_refund(ctx: ToolContext, args: ProposeRefundIn) -> ActionPropo
     refundable = payment.amount - payment.amount_refunded
     if payment.status != "succeeded" or refundable <= 0:
         raise ToolError("That payment has nothing left to refund.")
-    amount = args.amount_cents or refundable
+    amount = args.amount_cents
     if amount > refundable:
         raise ToolError(
             f"At most {format_money(refundable, payment.currency)} can be refunded on that payment."
@@ -391,7 +407,8 @@ async def propose_refund(ctx: ToolContext, args: ProposeRefundIn) -> ActionPropo
         ctx.session,
         owner_id=owner_id,
         action_type="refund",
-        params=RefundParams(charge_id=payment.id, amount=None if amount == refundable else amount),
+        # Always explicit (never "refund the rest"): what was shown is exactly what executes.
+        params=RefundParams(charge_id=payment.id, amount=amount),
         preview=preview,
         ttl_minutes=ctx.settings.action_proposal_ttl_minutes,
         conversation_id=ctx.conversation_id,

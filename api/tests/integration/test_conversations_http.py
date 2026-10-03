@@ -24,7 +24,7 @@ async def test_stream_event_order_and_persistence(owner_client, harness):
     conv = await _new_conversation(owner_client)
     harness.set_script(
         reply("Let me check.", ("find_payments", {"customer_query": "Maya", "limit": 1})),
-        reply("", ("propose_refund", {"charge_id": MAYA_LAST_CHARGE})),
+        reply("", ("propose_refund", {"charge_id": MAYA_LAST_CHARGE, "amount_cents": 8200})),
         reply("Ready: confirm the $82.00 refund."),
     )
     r = await owner_client.post(
@@ -142,7 +142,7 @@ async def test_reloaded_conversation_carries_its_cards_with_current_status(owner
 
     conv = await _new_conversation(owner_client)
     harness.set_script(
-        reply("", ("propose_refund", {"charge_id": MAYA_LAST_CHARGE})),
+        reply("", ("propose_refund", {"charge_id": MAYA_LAST_CHARGE, "amount_cents": 8200})),
         reply("Check the card and hit Confirm."),
     )
     r = await owner_client.post(f"/conversations/{conv}/messages", json={"content": "refund maya"})

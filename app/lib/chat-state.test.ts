@@ -230,3 +230,19 @@ describe("pending proposals", () => {
     expect(after.messages.flatMap((m) => m.actions)).toEqual([]); // event dropped: nothing live
   });
 });
+
+describe("duplicate proposal events", () => {
+  it("one card per action id even if the stream repeats it", () => {
+    let s = send(emptyChat);
+    const proposed = {
+      type: "action_proposed" as const,
+      action_id: "a-1",
+      action_type: "refund",
+      preview: "Partial refund of $120.00 to Acme Corp",
+      expires_at: "2026-10-03T20:00:00Z",
+    };
+    s = ev(s, proposed);
+    s = ev(s, proposed);
+    expect(live(s).actions.map((a) => a.id)).toEqual(["a-1"]);
+  });
+});

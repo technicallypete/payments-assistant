@@ -15,7 +15,8 @@ pytestmark = pytest.mark.integration
 async def _propose_refund(owner_client, harness) -> str:
     conv = (await owner_client.post("/conversations", json={})).json()["id"]
     harness.set_script(
-        reply("", ("propose_refund", {"charge_id": MAYA_LAST_CHARGE})), reply("Confirm?")
+        reply("", ("propose_refund", {"charge_id": MAYA_LAST_CHARGE, "amount_cents": 8200})),
+        reply("Confirm?"),
     )
     r = await owner_client.post(f"/conversations/{conv}/messages", json={"content": "refund maya"})
     return next(e for e in parse_sse(r.text) if e["type"] == "action_proposed")["action_id"]

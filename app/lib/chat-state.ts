@@ -99,7 +99,10 @@ function applyEvent(state: ChatState, e: AgentEvent): ChatState {
     case "action_proposed":
       return updateLive(state, (m) => ({
         ...m,
-        actions: [
+        // One card per proposal id, even if the stream repeats it.
+        actions: m.actions.some((a) => a.id === e.action_id)
+          ? m.actions
+          : [
           ...m.actions,
           {
             id: e.action_id,

@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
 
 import { Markdown } from "@/components/Markdown";
 import { ApiError, stream } from "@/lib/client";
+import { MONEY_MOVED_EVENT } from "@/lib/format";
 
 /** Streams the daily summary (cached per day server-side; Refresh regenerates). */
 export function TodayPanel() {
@@ -48,6 +49,14 @@ export function TodayPanel() {
     setStatus("streaming");
     settle(start(true, ctrl.signal), ctrl);
   }
+
+  // A confirmed refund/invoice changes today's numbers: re-generate the summary.
+  const onMoneyMoved = useEffectEvent(() => refresh());
+  useEffect(() => {
+    const onMoved = () => onMoneyMoved();
+    window.addEventListener(MONEY_MOVED_EVENT, onMoved);
+    return () => window.removeEventListener(MONEY_MOVED_EVENT, onMoved);
+  }, []);
 
   useEffect(() => {
     const ctrl = new AbortController();

@@ -87,12 +87,39 @@ async def propose(
     if not isinstance(params, expected):
         raise TypeError(f"{action_type} needs {expected.__name__}")
     now = now or _now()
+    params_json = params.model_dump(mode="json")
+    # Identical proposal still pending in the same place? Reuse it rather than stacking duplicate
+    # cards (a model retrying the same call once produced four identical refund cards).
+    existing = (
+        (
+            await session.execute(
+                select(OwnerAction).where(
+                    OwnerAction.owner_id == owner_id,
+                    OwnerAction.action_type == action_type,
+                    OwnerAction.status == "proposed",
+                    OwnerAction.expires_at > now,
+                    OwnerAction.params == params_json,
+                    OwnerAction.conversation_id.is_(None)
+                    if conversation_id is None
+                    else OwnerAction.conversation_id == conversation_id,
+                    OwnerAction.api_key_id.is_(None)
+                    if api_key_id is None
+                    else OwnerAction.api_key_id == api_key_id,
+                )
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if existing is not None:
+        existing.reused = True  # transient flag for callers; not a column
+        return existing
     action = OwnerAction(
         owner_id=owner_id,
         conversation_id=conversation_id,
         api_key_id=api_key_id,
         action_type=action_type,
-        params=params.model_dump(mode="json"),
+        params=params_json,
         preview=preview,
         status="proposed",
         expires_at=now + timedelta(minutes=ttl_minutes),

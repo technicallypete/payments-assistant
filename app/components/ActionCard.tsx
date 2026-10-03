@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 import { actionResultPatch, type ProposedAction } from "@/lib/chat-state";
 import { api, ApiError } from "@/lib/client";
-import { countdown } from "@/lib/format";
+import { countdown, MONEY_MOVED_EVENT } from "@/lib/format";
 import type { Action } from "@/lib/types";
 
 const TITLES: Record<string, string> = {
@@ -52,6 +52,7 @@ export function ActionCard({
     try {
       const result = await api<Action>(`actions/${action.id}/${kind}`, { method: "POST" });
       onChange(actionResultPatch(result));
+      if (result.status === "executed") window.dispatchEvent(new Event(MONEY_MOVED_EVENT));
     } catch (err) {
       const detail = err instanceof ApiError ? err.detail : "Couldn't reach the server.";
       onChange({ state: err instanceof ApiError && err.status === 409 ? "failed" : "proposed", error: detail });

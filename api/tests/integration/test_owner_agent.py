@@ -48,7 +48,7 @@ async def test_refund_mayas_last_payment_only_proposes(admin_engine, api_engine,
     owner, gw = await _owner(admin_engine), owner_gateway()
     script = [
         reply("", ("find_payments", {"customer_query": "Maya", "status": "succeeded", "limit": 1})),
-        reply("", ("propose_refund", {"charge_id": MAYA_LAST_CHARGE})),
+        reply("", ("propose_refund", {"charge_id": MAYA_LAST_CHARGE, "amount_cents": 8200})),
         reply("Ready to refund $82.00 to Maya. Press Confirm."),
     ]
     _, events = await _turn(api_engine, settings, owner, gw, script, "Refund Maya's last payment")
@@ -65,7 +65,7 @@ async def test_refund_mayas_last_payment_only_proposes(admin_engine, api_engine,
             )
         ).scalar_one()
     assert action.status == "proposed"
-    assert action.params == {"charge_id": MAYA_LAST_CHARGE, "amount": None}
+    assert action.params == {"charge_id": MAYA_LAST_CHARGE, "amount": 8200}
 
 
 async def test_invoice_acme_due_next_friday(admin_engine, api_engine, settings):
@@ -138,3 +138,53 @@ async def test_invoice_description_defaults(admin_engine, api_engine, settings):
     _, events = await _turn(api_engine, settings, owner, gw, script, "invoice acme $250 friday")
     proposed = next(e for e in events if isinstance(e, ActionProposed))
     assert "\u201cServices\u201d" in proposed.preview
+
+
+async def test_refund_without_amount_is_rejected_not_defaulted_to_full(
+    admin_engine, api_engine, settings
+):
+    """Regression: an omitted amount used to mean "refund everything" ($740 instead of $120)."""
+    owner, gw = await _owner(admin_engine), owner_gateway()
+    script = [
+        reply("", ("propose_refund", {"charge_id": MAYA_LAST_CHARGE})),
+        reply("I need the amount."),
+    ]
+    _, events = await _turn(api_engine, settings, owner, gw, script, "refund maya $20")
+    end = events[-1]
+    assert "Invalid arguments" in end.tool_records[0].error
+    assert "amount_cents" in end.tool_records[0].error
+    assert not [e for e in events if isinstance(e, ActionProposed)]
+
+
+async def test_partial_refund_preview_and_params(admin_engine, api_engine, settings):
+    owner, gw = await _owner(admin_engine), owner_gateway()
+    script = [
+        reply("", ("propose_refund", {"charge_id": MAYA_LAST_CHARGE, "amount_cents": 2000})),
+        reply("Proposed."),
+    ]
+    _, events = await _turn(api_engine, settings, owner, gw, script, "refund $20 of maya's last")
+    proposed = next(e for e in events if isinstance(e, ActionProposed))
+    assert proposed.preview.startswith("Partial refund of $20.00 to Maya Chen")
+    async with async_sessionmaker(admin_engine)() as s:
+        action = await s.get(OwnerAction, UUID(proposed.action_id))
+    assert action.params == {"charge_id": MAYA_LAST_CHARGE, "amount": 2000}
+
+
+async def test_repeated_identical_proposals_make_one_card(admin_engine, api_engine, settings):
+    """Regression: a model retrying the same propose call produced four identical cards."""
+    owner, gw = await _owner(admin_engine), owner_gateway()
+    call = ("propose_refund", {"charge_id": MAYA_LAST_CHARGE, "amount_cents": 8200})
+    script = [reply("", call), reply("", call), reply("", call), reply("Done.")]
+    _, events = await _turn(api_engine, settings, owner, gw, script, "refund maya")
+    cards = [e for e in events if isinstance(e, ActionProposed)]
+    assert len(cards) == 1
+    results = [r.result for r in events[-1].tool_records]
+    assert [r["already_proposed"] for r in results] == [False, True, True]
+    assert len({r["action_id"] for r in results}) == 1
+    async with async_sessionmaker(admin_engine)() as s:
+        rows = (
+            (await s.execute(select(OwnerAction).where(OwnerAction.owner_id == owner)))
+            .scalars()
+            .all()
+        )
+    assert len(rows) == 1
