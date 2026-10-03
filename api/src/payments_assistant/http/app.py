@@ -36,7 +36,7 @@ def create_app(state: AppState | None = None) -> FastAPI:
         if owns_state:
             await app.state.app_state.engine.dispose()
 
-    app = FastAPI(title="Payments Assistant API", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="Payments Assistant API", version="0.2.0", lifespan=lifespan)
     app.state.app_state = state
 
     @app.get("/health", include_in_schema=False)
