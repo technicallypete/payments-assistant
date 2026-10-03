@@ -181,6 +181,15 @@ without a key gets a 401.
 
 - I built this with **Claude Code**, using subagents for parallel work (for example, the RLS test
   suite, the Stripe gateways, the seed and the UI were each delegated while the core was written).
+- The repo was bootstrapped with **Claude Code skills I had already written** for scaffolding
+  full-stack projects. They're included verbatim in `.claude/skills/`:
+  - `bootstrap-fullstack` for build order and naming;
+  - `docker-setup` for Compose, least-privilege Postgres roles and the migrate job;
+  - `nextjs-setup` for Next.js app conventions.
+
+  `.claude/skills/README.md` records where this project departs from them: FastAPI instead of Django,
+  table grants moved into Alembic migrations, no MinIO, and a BFF proxy instead of the browser calling
+  the API directly.
 - The work was driven by written documents:
   - a **spec** (`docs/v0/spec.md`) for auth, data and RLS;
   - a phased **plan** with cut lines (`docs/v0/plan.md`);
