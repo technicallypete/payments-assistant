@@ -6,7 +6,7 @@ Tracks status against `docs/v0/goal.md`. Updated every loop iteration.
 
 | Limit | Cap | Used |
 |---|---|---|
-| Iterations | 15 | 1 |
+| Iterations | 15 | 2 |
 | OpenRouter `llm_eval` runs | 3 (~$2) | 0 |
 | Repeated-failure streak | 3 | 0 |
 
@@ -14,8 +14,8 @@ Tracks status against `docs/v0/goal.md`. Updated every loop iteration.
 |---|---|---|---|
 | 0 Repo hygiene | 10m | 20m | ✅ done (by user before loop) |
 | 1 Skeleton | 45m | 90m | ✅ done (iteration 1) |
-| 2 DB schema, RLS | 45m | 90m | next |
-| 3 Core + Stripe + seed | 50m | 100m | |
+| 2 DB schema, RLS | 45m | 90m | ✅ done (iteration 2) |
+| 3 Core + Stripe + seed | 50m | 100m | next |
 | 4 Tools + LLM + owner agent | 45m | 90m | |
 | 5 Owner HTTP API + auth | 35m | 70m | |
 | 6 Next BFF + UI | 50m | 100m | |
@@ -61,3 +61,34 @@ Tracks status against `docs/v0/goal.md`. Updated every loop iteration.
 creates them for the anonymous volumes). They're gitignored and harmless.
 
 **Next:** Phase 2 (schema, RLS, definer functions, full RLS suite).
+
+### Iteration 2: Phase 2 (2026-10-03)
+
+**Built:**
+- `alembic/versions/0001_schema.py`: all 15 tables from spec §5 as hand-written SQL. Includes the
+  conversation actor/channel CHECK, the one-active-Telegram-link partial unique index, the
+  one-open-payment-request-per-invoice partial unique index, and a `messages_check_customer` trigger. The
+  trigger runs as the invoker, so under the bot's RLS another customer's conversation is invisible and
+  the insert fails.
+- `0002_rls_grants.py`: `app_current_customer()`, ENABLE + FORCE RLS, `api` (all rows) and `bot`
+  (scoped) policies, the bot audit-insert-only policy, explicit grants per the §5.4 matrix (column-level
+  UPDATE on conversations), and the SECURITY DEFINER `redeem_customer_invite`,
+  `resolve_telegram_identity`, `revoke_telegram_identity` (pinned search_path; EXECUTE for bot only).
+  Downgrade/upgrade round-trips.
+- `core/models.py` (SQLAlchemy, client-side uuid4 PKs so bot INSERTs never need RETURNING) and
+  `core/scoping.py` (`customer_scope`).
+
+**Tests:** RLS suite (61, written by a subagent) + identity functions (11) + scoping (3) + schema and
+constraints (9). The RLS suite runs as `bot`/`api`/`reporter`, never admin.
+
+**Decisions / deviations (docs updated):**
+- Added `revoke_telegram_identity()` for `/logout`, since the bot can't write identities directly (spec §3.2).
+- `audit_log` gets RLS so bot audit rows are pinned to its own customer.
+- The integration test DB is now `<DB_NAME>_test_<random>` per run and dropped afterwards, so parallel
+  runs (subagents) can't clobber each other.
+- Ruff E501 is disabled for `alembic/versions/*` (long SQL lines).
+
+**Verification:** `pytest -m "not stripe and not llm_eval"` → **95 passed** (8 unit + 87 integration).
+Core coverage 96%. ruff check + format clean. No leftover test databases.
+
+**Next:** Phase 3 (Stripe gateways, core services, seed).

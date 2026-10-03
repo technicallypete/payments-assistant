@@ -6,7 +6,8 @@ Runs in the `api-test` compose service, which provides PG_HOST and the DB_* cred
 """
 
 import os
-from collections.abc import AsyncIterator
+import uuid
+from collections.abc import AsyncIterator, Iterator
 
 import psycopg
 import pytest
@@ -20,7 +21,8 @@ pytestmark = pytest.mark.integration
 
 PG_HOST = os.environ.get("PG_HOST", "postgres")
 DB_NAME = os.environ.get("DB_NAME", "payments_assistant")
-TEST_DB = f"{DB_NAME}_test"
+# Unique per pytest run so parallel runs (e.g. subagents) never drop each other's database.
+TEST_DB = f"{DB_NAME}_test_{uuid.uuid4().hex[:8]}"
 ADMIN_USER = os.environ.get("DB_ADMIN_USER", "admin")
 PASSWORDS = {
     ADMIN_USER: os.environ.get("DB_ADMIN_PASSWORD", "admin"),
@@ -41,13 +43,10 @@ def pytest_collection_modifyitems(items):
 
 
 @pytest.fixture(scope="session")
-def migrated_db() -> str:
-    """Recreate the test DB from scratch and run every migration as admin."""
+def migrated_db() -> Iterator[str]:
+    """Create a fresh test DB, run every migration as admin, and drop it after the session."""
     admin_dsn = role_url(ADMIN_USER, db=DB_NAME, driver="postgresql")
     with psycopg.connect(admin_dsn, autocommit=True) as conn:
-        conn.execute(
-            sql.SQL("DROP DATABASE IF EXISTS {} WITH (FORCE)").format(sql.Identifier(TEST_DB))
-        )
         conn.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(TEST_DB)))
     # Roles are cluster-global; CONNECT/USAGE are per database, so grant them here too
     # (the init script only covered the dev database).
@@ -63,7 +62,12 @@ def migrated_db() -> str:
     cfg.set_main_option("sqlalchemy.url", role_url(ADMIN_USER))
     cfg.attributes["configure_logger"] = False
     command.upgrade(cfg, "head")
-    return TEST_DB
+    yield TEST_DB
+
+    with psycopg.connect(admin_dsn, autocommit=True) as conn:
+        conn.execute(
+            sql.SQL("DROP DATABASE IF EXISTS {} WITH (FORCE)").format(sql.Identifier(TEST_DB))
+        )
 
 
 async def _engine(role: str) -> AsyncIterator[AsyncEngine]:

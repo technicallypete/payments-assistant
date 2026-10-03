@@ -228,6 +228,8 @@ Stripe customer.
    which burns the token, upserts `telegram_identities`, and returns `customer_account_id`.
 4. Later messages resolve through `resolve_telegram_identity(tg_user_id)`, also `SECURITY DEFINER`, and
    then enter the RLS scope.
+5. `/logout` calls `revoke_telegram_identity(tg_user_id)` (also `SECURITY DEFINER`). The bot has no
+   direct write access to `telegram_identities`.
 
 The seed prints an invite link per seeded customer. The owner UI has "Copy Telegram invite" per customer.
 
@@ -429,6 +431,11 @@ straight to `api`, not through the Next proxy, so the body stays raw.
 **`audit_log`**: append-only. `api` and `bot` get S/I and I respectively, no UPDATE or DELETE.
 `id · actor_type (owner|owner_mcp|customer|system|stripe) · actor_id · customer_account_id null · action · target ·
 payload jsonb · created_at`.
+
+As built (migrations 0001/0002): all ids, including owner ids, are UUIDs. Policies compare against
+`app_current_customer()`, a SQL helper over the transaction-local setting. `audit_log` has RLS too: `bot`
+may only INSERT rows for its own customer (`audit_log_bot_insert`) and can't read any. `reporter` gets
+SELECT only on `daily_summaries`, `owner_actions`, and `stripe_events`.
 
 ### 5.4 Grant matrix
 
