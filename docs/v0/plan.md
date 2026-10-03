@@ -147,10 +147,10 @@ Next page loads, `stripe-cli` has written `/run/stripe/whsec`, and both test sui
 ## Test commands (all via Docker; fill in exact forms during Phase 1)
 
 ```bash
-docker compose run --rm api uv run pytest -m "not integration"
-docker compose run --rm -e DATABASE_URL=$ADMIN_URL api uv run pytest -m integration
-docker compose run --rm api uv run pytest -m stripe        # needs sk_test_
-docker compose run --rm api uv run pytest -m llm_eval      # needs OPENROUTER_API_KEY
+docker compose run --rm api-test uv run pytest -m "not integration and not stripe and not llm_eval"
+docker compose run --rm api-test uv run pytest -m integration
+docker compose run --rm api-test uv run pytest -m stripe        # needs sk_test_
+docker compose run --rm api-test uv run pytest -m llm_eval      # needs OPENROUTER_API_KEY
 docker compose run --rm app bun run test
 ```
 

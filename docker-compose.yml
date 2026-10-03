@@ -1,0 +1,162 @@
+# Payments Assistant: dev environment. All development runs through this file (see CLAUDE.md).
+#
+#   cp .env.example .env   # fill in the 4 required secrets
+#   docker compose up --build
+#   app → http://localhost:${APP_HOST_PORT:-3010}   api docs → http://localhost:${API_HOST_PORT:-8010}/docs
+#
+# `.env` holds secrets and reviewer-facing settings (loaded via env_file). Ports, DB names/roles and
+# service wiring default here via ${VAR:-default}; add any of them to .env to override.
+# Container ports are fixed (app 3000, api 8000, postgres 5432); only host ports vary.
+
+x-api-build: &api-build
+  context: ./api
+  dockerfile: ../docker/Dockerfile.api
+  args:
+    UID: ${UID:-1000}
+    GID: ${GID:-1000}
+
+x-db-env: &db-env
+  DB_NAME: ${DB_NAME:-payments_assistant}
+  ENVIRONMENT: ${ENVIRONMENT:-development}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-payments_assistant}
+      POSTGRES_USER: ${DB_ADMIN_USER:-admin}
+      POSTGRES_PASSWORD: ${DB_ADMIN_PASSWORD:-admin}
+      # Read by postgres/init/01-roles.sh on the first start of an empty volume.
+      DB_API_PASSWORD: ${DB_API_PASSWORD:-api}
+      DB_BOT_PASSWORD: ${DB_BOT_PASSWORD:-bot}
+      DB_REPORTER_PASSWORD: ${DB_REPORTER_PASSWORD:-reporter}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_ADMIN_USER:-admin} -d ${DB_NAME:-payments_assistant}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # One-shot: migrations (tables, RLS policies, grants) run as admin, who owns every table.
+  api-migrate:
+    build: *api-build
+    command: uv run alembic upgrade head
+    volumes:
+      - ./api:/app
+    env_file: [.env]
+    environment:
+      <<: *db-env
+      DATABASE_URL: postgresql+psycopg://${DB_ADMIN_USER:-admin}:${DB_ADMIN_PASSWORD:-admin}@postgres:5432/${DB_NAME:-payments_assistant}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  # Owner domain API + Stripe webhooks (+ owner MCP in Phase 9). Connects as least-privilege `api`.
+  api:
+    build: *api-build
+    command: uv run uvicorn payments_assistant.http.app:app --host 0.0.0.0 --port 8000 --reload --reload-dir src
+    volumes:
+      - ./api:/app
+      - stripe-secret:/run/stripe:ro
+    ports:
+      - "${API_HOST_PORT:-8010}:8000"
+    env_file: [.env]
+    environment:
+      <<: *db-env
+      DATABASE_URL: postgresql+psycopg://api:${DB_API_PASSWORD:-api}@postgres:5432/${DB_NAME:-payments_assistant}
+      STRIPE_WEBHOOK_SECRET_FILE: /run/stripe/whsec
+    depends_on:
+      api-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  # Telegram customer bot (long polling). Same image; connects as `bot`, which is RLS-scoped.
+  bot:
+    build: *api-build
+    command: uv run python -m payments_assistant.bot
+    volumes:
+      - ./api:/app
+    env_file: [.env]
+    environment:
+      <<: *db-env
+      DATABASE_URL: postgresql+psycopg://bot:${DB_BOT_PASSWORD:-bot}@postgres:5432/${DB_NAME:-payments_assistant}
+    depends_on:
+      api-migrate:
+        condition: service_completed_successfully
+
+  # Forwards Stripe test-mode events to the api. Writes its signing secret to a shared volume
+  # first, so nobody copies whsec_ by hand.
+  stripe-cli:
+    image: stripe/stripe-cli:latest
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >
+        stripe listen --print-secret > /run/stripe/whsec.tmp &&
+        mv /run/stripe/whsec.tmp /run/stripe/whsec &&
+        exec stripe listen --skip-update
+        --events invoice.paid,invoice.payment_failed,invoice.voided,invoice.marked_uncollectible,charge.refunded,payment_intent.succeeded,payment_intent.payment_failed
+        --forward-to http://api:8000/webhooks/stripe
+    environment:
+      STRIPE_API_KEY: ${STRIPE_SECRET_KEY:?set STRIPE_SECRET_KEY in .env}
+    volumes:
+      - stripe-secret:/run/stripe
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # Next.js owner SPA + BFF route handlers: the only public edge. Calls the api server-side.
+  app:
+    build:
+      context: ./app
+      dockerfile: ../docker/Dockerfile.app
+    volumes:
+      - ./app:/app
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - "${APP_HOST_PORT:-3010}:3000"
+    env_file: [.env]
+    environment:
+      API_URL: http://api:8000
+      APP_ORIGIN: ${APP_ORIGIN:-http://localhost:${APP_HOST_PORT:-3010}}
+      WATCHPACK_POLLING: ${WATCHPACK_POLLING:-false}
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # Test runner (not started by `up`): `docker compose run --rm api-test uv run pytest ...`
+  # Has admin credentials so integration tests can create/migrate a throwaway <DB_NAME>_test DB.
+  api-test:
+    build: *api-build
+    profiles: ["test"]
+    volumes:
+      - ./api:/app
+    env_file: [.env]
+    environment:
+      <<: *db-env
+      PG_HOST: postgres
+      DB_ADMIN_USER: ${DB_ADMIN_USER:-admin}
+      DB_ADMIN_PASSWORD: ${DB_ADMIN_PASSWORD:-admin}
+      DB_API_PASSWORD: ${DB_API_PASSWORD:-api}
+      DB_BOT_PASSWORD: ${DB_BOT_PASSWORD:-bot}
+      DB_REPORTER_PASSWORD: ${DB_REPORTER_PASSWORD:-reporter}
+      DATABASE_URL: ""
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+  stripe-secret:

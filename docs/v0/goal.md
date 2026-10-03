@@ -53,7 +53,7 @@ the loop; the iteration cap stands in for it, and the user can interrupt at any 
 - [ ] `stripe-cli` has written `/run/stripe/whsec`, and `api` loaded it.
 
 ### B. Unit tests (no network, no DB)
-- [ ] `docker compose run --rm api uv run pytest -m "not integration and not stripe and not llm_eval"` → 0 failures.
+- [ ] `docker compose run --rm api-test uv run pytest -m "not integration and not stripe and not llm_eval"` → 0 failures.
 - [ ] Covers at minimum: the threshold at 199999/200000/200001; owner action
       propose → confirm → execute / cancel / expire; invite and session tokens (hash only, single use,
       expiry); `CustomerStripeGateway` rejecting foreign objects; date ranges in `BUSINESS_TIMEZONE`
@@ -66,7 +66,7 @@ the loop; the iteration cap stands in for it, and the user can interrupt at any 
       login/logout cookie flags, and the SSE parser.
 
 ### C. Integration tests (real Postgres)
-- [ ] `docker compose run --rm -e DATABASE_URL=<admin> api uv run pytest -m integration` → 0 failures.
+- [ ] `docker compose run --rm api-test uv run pytest -m integration` → 0 failures.
 - [ ] **RLS suite connects as role `bot`** (asserted inside the test) and passes every spec §8 case: no
       scope → 0 rows; A can't read or write B; no access to owner tables or `customer_invites`; no
       UPDATE/DELETE on `messages`/`audit_log`; no scope leak across pooled transactions; definer functions
@@ -97,8 +97,8 @@ the loop; the iteration cap stands in for it, and the user can interrupt at any 
 - [ ] Customer asks about another customer or about revenue → refused, with nothing leaked.
 
 ### F. Quality gates
-- [ ] `docker compose run --rm api uv run ruff check .` and `ruff format --check .` are clean.
-      `docker compose run --rm app bun run lint` and `bunx tsc --noEmit` are clean.
+- [ ] `docker compose run --rm api-test uv run ruff check .` and `ruff format --check .` are clean.
+      `docker compose run --rm app bun run lint` and `docker compose run --rm app bun run typecheck` are clean.
 - [ ] No secrets committed (`git grep -nE 'sk_test_[A-Za-z0-9]{10}|sk-or-|[0-9]{8,}:AA'` → none),
       and `.env` is not tracked.
 - [ ] `core/` imports nothing from `http/`, `bot/`, or `mcp/` (a test or grep check enforces it).

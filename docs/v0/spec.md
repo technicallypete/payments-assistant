@@ -302,8 +302,10 @@ Adapted from the `docker-setup` skill's `01-roles.sql`:
 | `bot` | LOGIN, `NOBYPASSRLS` | `bot` worker | policy scoped to `app.customer_account_id` |
 | `reporter` | LOGIN, SELECT only | unwired | no customer policy (deny) |
 
-`api` is in `ALTER DEFAULT PRIVILEGES` (CRUD). `bot` is **not**. Each migration grants `bot` exactly what
-it needs (deny by default).
+All table grants live in **Alembic migrations**, not `ALTER DEFAULT PRIVILEGES`. Default privileges are
+per-database, so the throwaway test DB would silently differ from dev. Each migration grants `api` and
+`bot` exactly what the §5.4 matrix says (deny by default). The init script (`postgres/init/01-roles.sh`)
+only creates the roles, CONNECT, and schema USAGE.
 
 ### 4.2 Scoping
 

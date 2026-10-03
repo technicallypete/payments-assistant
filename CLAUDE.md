@@ -56,7 +56,7 @@ Don't install or run Python, uv, Node, or bun on the host, and don't create a ho
   `stripe_customer_id` is injected, and the gateway re-checks ownership of every Stripe object.
 - **Customer-scoped tables use Postgres RLS** (`ENABLE` + `FORCE`), keyed on `customer_account_id`. A new
   customer-scoped table needs: the column, the `api` and `bot` policies, and explicit `bot` grants in the
-  Alembic migration. `bot` is deliberately absent from default privileges.
+  Alembic migration. All grants live in migrations (no default privileges), so dev and test DBs match.
 - All bot DB access runs inside `core.scoping.customer_scope(session, account_id)` (transaction-local
   `set_config`).
 - The $2,000 handoff rule (`HANDOFF_THRESHOLD_CENTS`) is enforced in `core.services`, not in prompts.
@@ -83,14 +83,15 @@ Unit and integration tests are required for new behavior.
 - Next: Vitest (proxy and cookie handling), with msw mocking `API_URL`.
 
 ```bash
-docker compose run --rm api uv run pytest -m "not integration"
-docker compose run --rm -e DATABASE_URL=<admin url> api uv run pytest -m integration
-docker compose run --rm api uv run pytest -m stripe      # opt-in
-docker compose run --rm api uv run pytest -m llm_eval    # opt-in
-docker compose run --rm app bun run test
+# Python (the api-test service has admin creds; integration tests create/migrate <DB_NAME>_test)
+docker compose run --rm api-test uv run pytest -m "not integration and not stripe and not llm_eval"
+docker compose run --rm api-test uv run pytest -m integration
+docker compose run --rm api-test uv run pytest -m stripe      # opt-in, real test account
+docker compose run --rm api-test uv run pytest -m llm_eval    # opt-in, costs OpenRouter credit
+docker compose run --rm api-test sh -c 'uv run ruff check . && uv run ruff format --check .'
+# Next
+docker compose run --rm app sh -c 'bun run test && bun run lint && bun run typecheck'
 ```
-
-Exact forms (e.g. the admin URL) are pinned in Phase 1.
 
 ## Git
 
