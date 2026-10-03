@@ -79,7 +79,7 @@ export function TodayPanel() {
   });
 
   return (
-    <section aria-labelledby="today-h" className="sheet sheet-ruled p-5 pl-10">
+    <section aria-labelledby="today-h" className="sheet p-5">
       <div className="flex items-baseline justify-between gap-3">
         <h2 id="today-h" className="font-display text-2xl text-ink">
           Today
