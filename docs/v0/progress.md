@@ -6,7 +6,7 @@ Tracks status against `docs/v0/goal.md`. Updated every loop iteration.
 
 | Limit | Cap | Used |
 |---|---|---|
-| Iterations | 15 | 6 |
+| Iterations | 15 | 7 |
 | OpenRouter spend / `llm_eval` runs | ~$4 / 6 runs (raised from ~$2 / 3 by the user) | 4 runs; ~$0.20 incl. live smoke/browser tests (dashboard showed $0.11 / 32 requests before run 4) |
 | Repeated-failure streak | 3 | 0 |
 
@@ -19,8 +19,8 @@ Tracks status against `docs/v0/goal.md`. Updated every loop iteration.
 | 4 Tools + LLM + owner agent | 45m | 90m | ✅ done (iteration 4) |
 | 5 Owner HTTP API + auth | 35m | 70m | ✅ done (iteration 5) |
 | 6 Next BFF + UI | 50m | 100m | ✅ done (iteration 6) |
-| 7 Telegram bot | 35m | 70m | next |
-| 8 Stripe webhook | 25m | 50m | |
+| 7 Telegram bot | 35m | 70m | ✅ done (iteration 7) |
+| 8 Stripe webhook | 25m | 50m | next |
 | 9 Bonus: owner MCP | 35m | 70m | |
 | 10 Docs + submission | 20m | 40m | |
 
@@ -274,3 +274,35 @@ card in 14s; Cancel produced a CANCELLED stamp and the DB status `cancelled`.
 **Verification:** Vitest **68 passed**, eslint clean, typecheck clean; Python **331 passed**; ruff clean.
 
 **Next:** Phase 7 (Telegram bot).
+
+### Iteration 7: Phase 7 (2026-10-03)
+
+I wrote the library-independent bot service; a subagent wrote the python-telegram-bot adapter.
+
+**Built:**
+- `bot/service.py`: `handle_start` (deep-link token → `redeem_customer_invite`; welcome by first name;
+  used/expired/unknown → "ask for a fresh link"), `handle_logout` (`revoke_telegram_identity`),
+  `handle_text` (resolve identity; unlinked → fixed reply, no LLM, nothing stored; linked → one
+  customer-agent turn inside `customer_scope` with a gateway bound to that customer's Stripe id; user
+  message, tool rows, and reply persisted in one ongoing conversation per chat; empty reply → fallback
+  with status `error`). Everything runs as the `bot` role.
+- `bot/telegram_app.py` (subagent): private chats only; `/start [payload]`, `/logout`, `/help`, text;
+  typing action refreshed every 4s; Markdown → Telegram HTML (`bot/formatting.py`, conservative,
+  escapes HTML, leaves amounts/ids/URLs intact, no javascript: links) with a plain-text fallback;
+  4096-char splitting; errors → fallback reply, never internals; `notify()` helper for the webhook.
+- `bot/__main__.py`: real long-polling entrypoint (bot DB role, live customer gateway, configured
+  model); idles with a clear log if the token is missing; httpx logging quieted so the token never
+  hits logs. Running live as @edger_payments_bot.
+- Fix: `append_message` only sets titles on owner conversations (the bot role can't update
+  conversation titles, by design).
+
+**Tests:** bot service integration 10 (as `bot`): single-use invites, unlinked → no LLM/no rows,
+owe → pay by number → link, ≥ $2,000 → handoff with no URL anywhere, cross-customer pay attempts →
+not_payable with nothing leaked, customers never see each other's history, logout, empty-reply
+fallback. Adapter unit tests 30 (formatting 17, handlers 13 with fake Updates).
+
+**Verification:** `pytest -m "not llm_eval and not stripe"` → **371 passed**; core+bot coverage 92%;
+ruff clean; bot container logs "Application started". A manual Telegram test needs a human (invite
+link sent to the user).
+
+**Next:** Phase 8 (Stripe webhook → payment_requests + Telegram "payment received").

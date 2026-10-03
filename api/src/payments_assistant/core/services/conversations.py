@@ -97,7 +97,8 @@ async def append_message(
     )
     session.add(msg)
     conv.last_message_at = now
-    if role == "user" and not conv.title:
+    # Titles are an owner-UI nicety; the bot role can't (and needn't) update them.
+    if role == "user" and not conv.title and conv.channel == "owner_web":
         conv.title = content.strip().replace("\n", " ")[:TITLE_MAX] or None
     await session.flush()
     return msg
