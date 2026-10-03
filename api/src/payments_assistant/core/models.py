@@ -17,6 +17,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    Identity,
     Integer,
     String,
     Text,
@@ -144,6 +145,8 @@ class Conversation(Base):
 class Message(Base):
     __tablename__ = "messages"
     id: Mapped[UUID] = _pk()
+    # Insertion order (identity column, migration 0003); timestamps can tie within a turn.
+    seq: Mapped[int] = mapped_column(BigInteger, Identity(always=True))
     conversation_id: Mapped[UUID] = mapped_column(ForeignKey("conversations.id"))
     customer_account_id: Mapped[UUID | None]
     role: Mapped[str] = mapped_column(Text)  # user | assistant | tool

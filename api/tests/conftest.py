@@ -6,7 +6,7 @@ from payments_assistant.core.config import Settings
 
 # DB fixtures (migrated throwaway database + per-role engines), shared by integration and
 # stripe_live tests so there is exactly one test database per run.
-pytest_plugins = ["tests.db_fixtures"]
+pytest_plugins = ["tests.db_fixtures", "tests.http_fixtures"]
 
 
 @pytest.fixture

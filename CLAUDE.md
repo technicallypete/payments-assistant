@@ -46,6 +46,8 @@ Don't install or run Python, uv, Node, or bun on the host, and don't create a ho
   `docker compose exec <service> <cmd>` against a running container.
 - Add dependencies inside the container so the lockfiles update in the bind mount:
   `docker compose run --rm api uv add <pkg>` / `docker compose run --rm app bun add <pkg>`.
+  Then `docker compose restart api bot` (or `app`): `uv run` / `bun install` only sync on container
+  start, and hot reload does not restart the container.
 - Migrations: `docker compose run --rm api-migrate` (apply), and
   `docker compose run --rm api-migrate uv run alembic revision --autogenerate -m "<msg>"` (create).
 - Seed: `docker compose run --rm api uv run python -m payments_assistant.seed`.
@@ -64,6 +66,11 @@ Don't install or run Python, uv, Node, or bun on the host, and don't create a ho
 - Owner mutations follow propose → confirm → execute via `owner_actions`, with Stripe idempotency keys.
 - The owner session token is httpOnly cookie → Bearer. It never reaches browser JS. Session tokens work
   only on the web API, and API keys work only on `/mcp`.
+- HTTP layer: routes get everything from `AppState` (`http/state.py`; tests inject fakes via
+  `tests/http_fixtures.py`). Streaming endpoints open their own DB session inside the generator,
+  never the request dependency's. Transcripts order by `messages.seq`, not timestamps.
+- Live Stripe tests must hide their charges (`metadata.pa_hidden="1"`) on cleanup, or they pollute
+  the demo account's totals.
 - Owner chat streams over SSE (spec §6.1). The Next proxy must pass bodies through unbuffered and forward
   aborts. Telegram never streams.
 - Customer linking is by Telegram deep-link invite token only. There is no phone/contact matching.

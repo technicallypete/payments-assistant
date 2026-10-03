@@ -9,6 +9,7 @@ from pydantic import BaseModel
 class MessageStart(BaseModel):
     type: Literal["message_start"] = "message_start"
     model: str
+    message_id: str | None = None  # filled in by the HTTP layer (the persisted assistant message)
 
 
 class Token(BaseModel):
@@ -47,6 +48,7 @@ class ToolRecord(BaseModel):
 
 class MessageEnd(BaseModel):
     type: Literal["message_end"] = "message_end"
+    message_id: str | None = None
     text: str
     input_tokens: int
     output_tokens: int

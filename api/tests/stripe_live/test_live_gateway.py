@@ -43,6 +43,11 @@ async def two_customers(client):
     ]
     yield made
     for c in made:
+        # Charges can't be deleted; hide them (gateways skip pa_hidden) so test runs don't
+        # pollute the demo account's daily totals. Then delete the customer.
+        listing = await client.v1.charges.list_async({"customer": c.id, "limit": 100})
+        async for ch in listing.auto_paging_iter():
+            await client.v1.charges.update_async(ch.id, {"metadata": {"pa_hidden": "1"}})
         await client.v1.customers.delete_async(c.id)
 
 

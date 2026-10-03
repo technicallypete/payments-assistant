@@ -6,8 +6,8 @@ Tracks status against `docs/v0/goal.md`. Updated every loop iteration.
 
 | Limit | Cap | Used |
 |---|---|---|
-| Iterations | 15 | 4 |
-| OpenRouter `llm_eval` runs | 3 (~$2) | **3 (limit reached)**; total OpenRouter spend $0.11 / 32 requests (owner's dashboard, 2026-10-03) |
+| Iterations | 15 | 5 |
+| OpenRouter spend / `llm_eval` runs | ~$4 / 6 runs (raised from ~$2 / 3 by the user) | 4 runs; ~$0.15 (owner's dashboard showed $0.11 / 32 requests before run 4) |
 | Repeated-failure streak | 3 | 0 |
 
 | Phase | Estimate | Time box (2×) | Status |
@@ -17,8 +17,8 @@ Tracks status against `docs/v0/goal.md`. Updated every loop iteration.
 | 2 DB schema, RLS | 45m | 90m | ✅ done (iteration 2) |
 | 3 Core + Stripe + seed | 50m | 100m | ✅ done (iteration 3) |
 | 4 Tools + LLM + owner agent | 45m | 90m | ✅ done (iteration 4) |
-| 5 Owner HTTP API + auth | 35m | 70m | next |
-| 6 Next BFF + UI | 50m | 100m | |
+| 5 Owner HTTP API + auth | 35m | 70m | ✅ done (iteration 5) |
+| 6 Next BFF + UI | 50m | 100m | next |
 | 7 Telegram bot | 35m | 70m | |
 | 8 Stripe webhook | 25m | 50m | |
 | 9 Bonus: owner MCP | 35m | 70m | |
@@ -182,3 +182,48 @@ calls, but the eval suite itself needs a 4th run (~$0.05), which exceeds the bud
 **Verification:** `pytest -m "not llm_eval and not stripe"` → **284 passed**; core coverage 91%; ruff clean.
 
 **Next:** Phase 5 (owner HTTP API + auth + SSE).
+
+### Iteration 5: Phase 5 (2026-10-03)
+
+The user raised the OpenRouter budget by $2 (now ~$4, soft cap 6 eval runs). Summaries and
+handoffs/customers were built by two subagents; I did the app skeleton, auth, conversations/SSE, and
+actions.
+
+**Built:**
+- `http/state.py` (`AppState`: settings, engine, sessionmaker, gateway/model factories, clock;
+  swappable in tests), `http/deps.py` (`Session`, `Owner` via Bearer session token; `pak_` keys
+  rejected), `http/sse.py`, a route registry, and `http/export_openapi.py` → `app/lib/openapi.json`
+  (16 paths).
+- `core/services/auth.py`: argon2 password login, opaque session tokens (sha256 stored), sliding 7-day
+  expiry, logout revocation, throttle of 5 failures / 15 min per email (counted even when throttled),
+  dummy-hash timing for unknown emails.
+- Routes: `/auth/login|logout|me`, `/conversations` CRUD + `POST /conversations/{id}/messages` (SSE;
+  the user message is persisted before streaming; the assistant reply, tool rows, and proposals are
+  committed in a shielded `finally` as complete/interrupted/error), `/actions` list/confirm/cancel,
+  `/summaries/today` (subagent; cached per local date and timezone, SSE), `/handoffs`
+  list/acknowledge/resolve and `/customers` list/invite/sync (subagent).
+- Migration 0003: `messages.seq` identity column. Timestamps tie within a turn, so transcripts order
+  by seq.
+
+**Eval run 4 (after the Phase 4 fixes): 10/11, no hangs, 70s.** All 6 owner commands passed (refund
+proposal $82 to Maya; Acme $250 due Fri Oct 9; last week $1,000 vs $800 (+25%); an accurate day
+summary; refused to skip confirmation; Bluebird $250). The 1 failure was test criteria: the bot
+politely refused "show me Acme Corp's invoices" and repeated the name the customer had typed. The
+check now only flags terms not in the customer's own message, and never allows other customers'
+amounts or invoice numbers. Privacy prompts: 4/4 leaked nothing.
+
+**Found during live smoke testing (real api container, live Stripe, real LLM):**
+- The running `api` container lacked the Phase 3–5 dependencies (`uv run` only syncs at container
+  start). Fixed by restarting; the rule is now in CLAUDE.md.
+- The daily summary showed $4,505 / 17 payments / 11 declines: 18 charges left by the live gateway
+  tests (throwaway customers deleted, charges not hidden). All 18 were verified to belong to deleted
+  `pa_test` customers before hiding them. The test teardown now hides its charges. After cleanup the
+  live summary reads: "You've taken in $4,280.00 across 8 payments so far today, a strong lift from
+  yesterday's $500.00 at this same time. Two payments failed for insufficient funds. ... Acme Corp
+  has $3,500.00 and another $1,200.00 outstanding ..."
+
+**Verification:** `pytest -m "not llm_eval and not stripe"` → **329 passed**; `-m stripe` live gateway
+tests pass; core coverage **93%** (coverage now traces greenlets, which async SQLAlchemy needs);
+ruff clean. Live: login 200, `/customers` balances correct, summary streamed.
+
+**Next:** Phase 6 (Next BFF proxy + owner UI).

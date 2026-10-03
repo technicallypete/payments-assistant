@@ -36,7 +36,7 @@ Track all of these in `progress.md` (a "Budget" table updated every iteration). 
 | **Iterations** | 15 total (11 phases + ~4 fix iterations) | Stop. Record status in `progress.md` and give the user a summary of what's done, what's failing, and what was cut. |
 | **Per-phase time box** | 2× the phase's estimate in `plan.md` (e.g. Phase 2: 45 min → 90 min) | Apply the plan's cut lines in order: Phase 9 (MCP bonus), then the polished handoff-queue UI (plain table instead), then the Playwright smoke test. Note the cut in `progress.md` and move on. **Never cut** the RLS suite, the threshold tests, or the unit tests a phase requires. |
 | **Repeated failure** | The same test/check failing on 3 consecutive iterations | Stop and ask the user. Don't try a fourth workaround. |
-| **OpenRouter spend** | ≤ 3 `pytest -m llm_eval` runs, ~$2 total (the key also has a spend limit) | Unit and integration tests use fake models and never call OpenRouter. Once the eval run limit is reached, record the latest results and don't re-run. |
+| **OpenRouter spend** | ~$4 total (raised from ~$2 by the user on 2026-10-03), checked on the OpenRouter dashboard/key API; soft cap of 6 `pytest -m llm_eval` runs | Unit and integration tests use fake models and never call OpenRouter. Stop running evals when either cap is reached; record the latest results. |
 
 Stripe test mode is free and doesn't count against the budget. Claude usage isn't measurable from inside
 the loop; the iteration cap stands in for it, and the user can interrupt at any time.

@@ -56,9 +56,11 @@ select = ["E", "F", "I", "B", "UP", "ASYNC", "S", "SIM"]
 ignore = ["S101"]  # assert is fine in tests
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S105", "S106"]
+"tests/**" = ["S105", "S106", "S107"]
 "alembic/versions/*" = ["E501"]  # hand-written SQL reads better unwrapped
 
 [tool.coverage.run]
 source = ["payments_assistant"]
 branch = true
+# Async SQLAlchemy runs DB work in greenlets; without this, lines after awaits look uncovered.
+concurrency = ["greenlet", "thread"]
