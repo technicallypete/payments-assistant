@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     llm_summary_model: str = ""
     llm_temperature: float = 0.0
     llm_max_tool_hops: int = Field(6, ge=1, le=20)
+    # OpenRouter reasoning control: "" = provider default, "none" = off, or low/medium/high.
+    llm_reasoning_effort: str = ""
+    # Per-request timeout and retries, so a stuck provider can't hang a chat turn indefinitely.
+    llm_timeout_seconds: int = 45
+    llm_max_retries: int = 1
 
     # Business rules
     business_timezone: str = "America/New_York"

@@ -25,8 +25,9 @@ pay **only their own** invoices.
   secrets and reviewer-facing settings only. Ports, DB, and wiring are `${VAR:-default}` in compose (host
   ports default to app 3010, api 8010, postgres 5433; container ports are fixed). Tuning knobs are
   pydantic `Settings` defaults. Per-service `DATABASE_URL` goes in `environment:`.
-- LLM: LangChain `init_chat_model(LLM_MODEL)` with a `provider:model` string. The default is
-  `openrouter:moonshotai/kimi-k2.6`. Never hard-code a model.
+- LLM: `core.llm.get_chat_model(settings)` from a `provider:model` string (`LLM_MODEL`; default
+  `openrouter:moonshotai/kimi-k2.6`, served via `ChatOpenAI` + OpenRouter base URL, not
+  `langchain-openrouter`, which hangs). Never hard-code a model. Tests use `tests/fake_llm.py`.
 - Tools: define each tool **once** in `core/tools/` (`@tool`, Pydantic input/output, `ToolContext` built
   from the authenticated actor). LangChain (`core/agents`) and MCP (`mcp/`) are thin adapters over the
   registry. Never define a tool inside an adapter.

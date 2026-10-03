@@ -6,8 +6,8 @@ Tracks status against `docs/v0/goal.md`. Updated every loop iteration.
 
 | Limit | Cap | Used |
 |---|---|---|
-| Iterations | 15 | 3 |
-| OpenRouter `llm_eval` runs | 3 (~$2) | 0 |
+| Iterations | 15 | 4 |
+| OpenRouter `llm_eval` runs | 3 (~$2) | **3 (limit reached)**; total OpenRouter spend $0.11 / 32 requests (owner's dashboard, 2026-10-03) |
 | Repeated-failure streak | 3 | 0 |
 
 | Phase | Estimate | Time box (2×) | Status |
@@ -16,8 +16,8 @@ Tracks status against `docs/v0/goal.md`. Updated every loop iteration.
 | 1 Skeleton | 45m | 90m | ✅ done (iteration 1) |
 | 2 DB schema, RLS | 45m | 90m | ✅ done (iteration 2) |
 | 3 Core + Stripe + seed | 50m | 100m | ✅ done (iteration 3) |
-| 4 Tools + LLM + owner agent | 45m | 90m | next |
-| 5 Owner HTTP API + auth | 35m | 70m | |
+| 4 Tools + LLM + owner agent | 45m | 90m | ✅ done (iteration 4) |
+| 5 Owner HTTP API + auth | 35m | 70m | next |
 | 6 Next BFF + UI | 50m | 100m | |
 | 7 Telegram bot | 35m | 70m | |
 | 8 Stripe webhook | 25m | 50m | |
@@ -129,3 +129,56 @@ the real test account). Core coverage 95%. ruff clean. No leftover test DBs. The
 httpx deprecation inside the Stripe SDK.
 
 **Next:** Phase 4 (tool registry, LLM, streaming owner agent).
+
+### Iteration 4: Phase 4 (2026-10-03)
+
+Customer tools and agent were built by a subagent; I did the registry, loop, LLM factory, and owner
+side.
+
+**Built:**
+- `core/tools/registry.py`: `@tool` (Pydantic in/out, docstring = model-facing description, UI label),
+  `ToolContext` (actor from session/identity, never args), `ToolSpec.json_schema()` (shared by LangChain
+  now and MCP later).
+- Owner tools: `get_activity` (period + comparison + open invoices), `find_customers`, `find_payments`,
+  `list_invoices`, and `propose_refund` / `propose_invoice` / `propose_payment_link` (proposals only).
+- Customer tools (subagent): `get_my_balance`, `list_my_invoices`, `list_my_payments`, `pay_invoice`,
+  `request_human`. There are no customer-identifying inputs, and a registry test enforces that.
+- `core/agents/loop.py`: streaming tool loop emitting the spec §6.1 events (message_start, token,
+  tool_start/end, action_proposed, message_end, error). Tool errors go back to the model; internals
+  don't leak. Hop limit 6. A provider error keeps the partial text. The history sent back is cleaned
+  (text + tool calls only). An empty final reply after tools gets one nudge.
+- `owner_agent.py` ("Penny") and `customer_agent.py`. The owner prompt includes the local date, says
+  numbers only come from tools, and says mutations are proposals.
+- `core/llm.py`: `LLM_MODEL` provider:model → `ChatOpenAI` via OpenRouter, with timeout, retries, and
+  reasoning settings.
+- Tests: scripted streaming fake model (`tests/fake_llm.py`), demo account (`tests/demo_data.py`),
+  registry invariants, loop behaviour, owner/customer tools, and agent turns end to end on the DB.
+
+**LLM eval runs (budget 3 of 3 used):**
+- Run 1: **8/11**. Failures: (a) the customer's "what do I owe" final text was empty; (b) the invoice
+  command asked for a line-item description instead of proposing; (c) the summary check was too strict
+  ("failed" vs "declined"; the text was correct: $822 today, +$522 vs yesterday, 2 insufficient-funds
+  declines, Acme $1,200 open).
+- Run 2: hung (stopped; no results).
+- Run 3: 4/4 passed (all customer privacy prompts), then hung on the 2-turn "pay it" test (killed at
+  15 min).
+
+**Root causes found and fixed after the runs:**
+- **Hang:** `langchain-openrouter`'s SDK retried timed-out streaming requests with backoff, ignoring our
+  timeout (faulthandler stack: `openrouter/utils/retries.py` → `httpx.ReadTimeout`). Raw HTTP to OpenRouter
+  answered the same request in 4–5s. Switched to `ChatOpenAI` + OpenRouter base URL: 3 consecutive
+  diagnostic calls took 4.7–9.2s. `langchain-openrouter` removed.
+- **Empty reply:** streamed `reasoning_details` got corrupted on chunk concatenation and were sent back.
+  The loop now sends clean messages and nudges once on an empty final reply.
+- **Invented invoice id on "pay it":** the model never saw the id (the history only has text).
+  `pay_invoice` now takes `invoice_ref`: an id, an invoice number like MAYA-0007, or nothing (= the only
+  open invoice).
+- **Invoice description:** now defaults to "Services", and the prompt says to propose rather than ask
+  about details that have defaults.
+
+**Not yet validated by an eval run:** the fixes above are covered by scripted tests plus live diagnostic
+calls, but the eval suite itself needs a 4th run (~$0.05), which exceeds the budget. Asked the user.
+
+**Verification:** `pytest -m "not llm_eval and not stripe"` → **284 passed**; core coverage 91%; ruff clean.
+
+**Next:** Phase 5 (owner HTTP API + auth + SSE).

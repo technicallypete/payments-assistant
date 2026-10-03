@@ -455,9 +455,13 @@ SELECT only on `daily_summaries`, `owner_actions`, and `stripe_events`.
 
 ## 6. LLM configuration
 
-- **LangChain `init_chat_model(LLM_MODEL)`** with the `provider:model` string (`langchain-openrouter`
-  supplies `ChatOpenRouter` for the `openrouter` provider). Switching to direct Anthropic or OpenAI
-  means changing the env var and adding that `langchain-*` package. No code changes.
+- **LangChain `init_chat_model`** driven by the `provider:model` string in `LLM_MODEL`. As built,
+  `openrouter:<model>` goes through LangChain's OpenAI-compatible client (`ChatOpenAI` with OpenRouter's
+  base URL). `langchain-openrouter` was tried and dropped: its SDK retried timed-out streaming requests
+  with backoff regardless of our timeout, which hung turns for minutes. Other providers
+  (`anthropic:...`, `openai:...`) go straight to `init_chat_model`; switching is an env change plus that
+  `langchain-*` package. `LLM_TIMEOUT_SECONDS` (45), `LLM_MAX_RETRIES` (1), and `LLM_REASONING_EFFORT`
+  (`""`, `none`, `low`, ...) are Settings defaults.
 - Tool calling uses `.bind_tools()` with tools adapted from the `core/tools` registry (§2.5). A small
   hand-rolled loop (≤ 6 tool hops) rather than a framework agent keeps the confirm gate and scoping
   explicit.
