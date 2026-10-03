@@ -170,23 +170,23 @@ export function Chat({ onActivity }: { onActivity?: () => void }) {
   const pending = visiblePending(state);
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 md:flex-row">
-      <nav aria-label="Conversations" className="md:w-56 md:shrink-0">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 md:flex-row max-md:gap-2">
+      <nav aria-label="Conversations" className="md:w-56 md:shrink-0 max-md:flex max-md:min-w-0 max-md:items-center max-md:gap-2">
         <button
           type="button"
           onClick={() => void newConversation()}
-          className="w-full rounded-full border border-rule-strong bg-card px-4 py-2 text-sm font-semibold text-ink hover:border-accent"
+          className="w-full rounded-full border border-rule-strong bg-card px-4 py-2 text-sm font-semibold text-ink hover:border-accent max-md:min-h-11 max-md:w-auto max-md:shrink-0 max-md:px-3"
         >
           + New conversation
         </button>
-        <ul className="mt-3 flex gap-2 overflow-x-auto md:flex-col md:overflow-visible">
+        <ul className="mt-3 flex gap-2 overflow-x-auto md:flex-col md:overflow-visible max-md:mt-0 max-md:min-w-0 max-md:flex-1">
           {conversations.map((c) => (
             <li key={c.id} className="shrink-0">
               <button
                 type="button"
                 aria-current={c.id === activeId ? "true" : undefined}
                 onClick={() => void open(c.id)}
-                className={`w-full max-w-60 truncate rounded-lg px-3 py-2 text-left text-sm ${
+                className={`w-full max-w-60 truncate rounded-lg px-3 py-2 text-left text-sm max-md:max-w-44 max-md:py-1 ${
                   c.id === activeId ? "bg-accent-soft text-ink" : "text-ink-2 hover:bg-paper-2"
                 }`}
               >
@@ -198,8 +198,8 @@ export function Chat({ onActivity }: { onActivity?: () => void }) {
         </ul>
       </nav>
 
-      <section aria-label="Chat with Penny" className="sheet flex min-h-[28rem] min-w-0 flex-1 flex-col">
-        <div className="flex-1 space-y-5 overflow-y-auto p-5" aria-live="polite" aria-busy={state.streaming}>
+      <section aria-label="Chat with Penny" className="sheet flex min-h-[28rem] min-w-0 flex-1 flex-col max-md:min-h-0">
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5 max-md:p-4" aria-live="polite" aria-busy={state.streaming}>
           {loadError && <p role="alert" className="text-sm text-margin">{loadError}</p>}
 
           {pending.length > 0 && (
@@ -263,7 +263,7 @@ export function Chat({ onActivity }: { onActivity?: () => void }) {
               }
             }}
             placeholder="Ask Penny…"
-            className="max-h-40 min-h-11 flex-1 resize-none rounded-xl border border-rule bg-paper px-3 py-2.5 text-[15px] text-ink placeholder:text-muted"
+            className="max-h-40 min-h-11 flex-1 resize-none rounded-xl border border-rule bg-paper px-3 py-2.5 text-base text-ink placeholder:text-muted md:text-[15px]"
           />
           {state.streaming ? (
             <button
@@ -298,7 +298,7 @@ function MessageRow({
   if (m.role === "user") {
     return (
       <div className="flex justify-end">
-        <p className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-sm bg-ink px-4 py-2.5 text-[15px] text-paper">
+        <p className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-sm bg-ink px-4 py-2.5 text-[15px] text-paper">
           {m.content}
         </p>
       </div>

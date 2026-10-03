@@ -88,7 +88,7 @@ export function CustomersPanel({ refreshKey = 0 }: { refreshKey?: number }) {
           <tbody className="divide-y divide-rule">
             {items.map((c) => (
               <tr key={c.id}>
-                <td className="py-2 pr-2">
+                <td className="break-words py-2 pr-2">
                   <span className="text-ink">{c.display_name}</span>
                   {c.telegram_linked && (
                     <span className="ml-2 rounded bg-accent-soft px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent">

@@ -76,7 +76,7 @@ export function ActionCard({
           </span>
         )}
       </div>
-      <p className="mt-2 text-[15px] leading-snug text-ink">{action.preview}</p>
+      <p className="mt-2 break-words text-[15px] leading-snug text-ink">{action.preview}</p>
 
       {(open || busy) && (
         <div className="mt-4 flex gap-2">

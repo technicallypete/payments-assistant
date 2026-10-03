@@ -8,9 +8,19 @@ import { REASON_LABEL, relativeTime } from "@/lib/format";
 import type { Handoff } from "@/lib/types";
 
 /** "Needs you": customer conversations the bot handed to the owner (e.g. ≥ $2,000 payments). */
-export function HandoffsPanel({ refreshKey = 0 }: { refreshKey?: number }) {
+export function HandoffsPanel({
+  refreshKey = 0,
+  onCount,
+}: {
+  refreshKey?: number;
+  onCount?: (count: number) => void; // e.g. the phone tab bar's badge
+}) {
   const [items, setItems] = useState<Handoff[] | null>(null);
   const toast = useToast();
+
+  useEffect(() => {
+    if (items !== null) onCount?.(items.length);
+  }, [items, onCount]);
 
   const load = useCallback(async () => {
     try {
