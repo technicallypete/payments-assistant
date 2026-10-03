@@ -5,7 +5,15 @@ from importlib import import_module
 from fastapi import FastAPI
 
 # Modules are imported lazily by name so parallel work can add files without merge conflicts.
-ROUTE_MODULES = ["auth", "conversations", "actions", "summaries", "handoffs", "customers"]
+ROUTE_MODULES = [
+    "auth",
+    "conversations",
+    "actions",
+    "summaries",
+    "handoffs",
+    "customers",
+    "webhooks",
+]
 
 
 def register_routes(app: FastAPI) -> None:

@@ -5,7 +5,8 @@ build an `AppState` with fakes (fake gateway, scripted model, frozen clock) and 
 `create_app(state=...)`.
 """
 
-from collections.abc import Callable
+import logging
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
@@ -20,6 +21,10 @@ def _utcnow() -> datetime:
     return datetime.now(UTC)
 
 
+async def _no_notify(chat_id: int, text: str) -> None:
+    logging.getLogger(__name__).info("telegram not configured; skipped notify to %s", chat_id)
+
+
 @dataclass
 class AppState:
     settings: Settings
@@ -28,6 +33,7 @@ class AppState:
     owner_gateway: Callable[[], OwnerStripeGateway]
     model: Callable[[str], BaseChatModel]  # purpose ("agent" | "summary") -> chat model
     clock: Callable[[], datetime] = field(default=_utcnow)
+    notify: Callable[[int, str], Awaitable[None]] = field(default=_no_notify)
 
     def model_name(self, purpose: str = "agent") -> str:
         s = self.settings
@@ -42,10 +48,17 @@ def build_default_state(settings: Settings) -> AppState:
 
     engine = make_engine(settings.database_url)
     client = make_client(settings)
+    extra = {}
+    if settings.telegram_bot_token:
+        from payments_assistant.bot.telegram_app import notify as telegram_notify
+
+        token = settings.telegram_bot_token
+        extra["notify"] = lambda chat_id, text: telegram_notify(token, chat_id, text)
     return AppState(
         settings=settings,
         engine=engine,
         sessionmaker=make_sessionmaker(engine),
         owner_gateway=lambda: LiveOwnerGateway(client),
         model=lambda purpose: get_chat_model(settings, purpose=purpose),
+        **extra,
     )

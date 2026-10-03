@@ -6,7 +6,7 @@ Tracks status against `docs/v0/goal.md`. Updated every loop iteration.
 
 | Limit | Cap | Used |
 |---|---|---|
-| Iterations | 15 | 7 |
+| Iterations | 15 | 8 |
 | OpenRouter spend / `llm_eval` runs | ~$4 / 6 runs (raised from ~$2 / 3 by the user) | 4 runs; ~$0.20 incl. live smoke/browser tests (dashboard showed $0.11 / 32 requests before run 4) |
 | Repeated-failure streak | 3 | 0 |
 
@@ -20,8 +20,8 @@ Tracks status against `docs/v0/goal.md`. Updated every loop iteration.
 | 5 Owner HTTP API + auth | 35m | 70m | ✅ done (iteration 5) |
 | 6 Next BFF + UI | 50m | 100m | ✅ done (iteration 6) |
 | 7 Telegram bot | 35m | 70m | ✅ done (iteration 7) |
-| 8 Stripe webhook | 25m | 50m | next |
-| 9 Bonus: owner MCP | 35m | 70m | |
+| 8 Stripe webhook | 25m | 50m | ✅ done (iteration 8) — **all required scope complete** |
+| 9 Bonus: owner MCP | 35m | 70m | next |
 | 10 Docs + submission | 20m | 40m | |
 
 ## Iteration log
@@ -306,3 +306,37 @@ ruff clean; bot container logs "Application started". A manual Telegram test nee
 link sent to the user).
 
 **Next:** Phase 8 (Stripe webhook → payment_requests + Telegram "payment received").
+
+### Iteration 8: Phase 8 (2026-10-03). Required scope complete
+
+Done directly (small, tightly coupled phase).
+
+**Built:**
+- `POST /webhooks/stripe` (`http/routes/webhooks.py`): reached by `stripe-cli` on the compose network
+  (the Next allowlist blocks it). It verifies `Stripe-Signature` on the raw body first (bad, missing,
+  stale, or tampered → 400; no secret → 503), then processes the verified raw JSON.
+- `core/services/webhooks.py`: `stripe_events` insert-or-lock, processed only while `processed_at` is
+  NULL, so Stripe retries and replays can't double-apply. `invoice.paid` → payment requests `paid`
+  and open handoffs for that invoice resolved; `invoice.payment_failed` → `failed`;
+  `invoice.voided|marked_uncollectible` → `void`. Any money event invalidates today's cached summary.
+  All events are audited.
+- Notifications (`AppState.notify`, Telegram `notify()` when a token is set) are returned by the service
+  and sent **after commit**, best effort. A Telegram failure never fails the webhook. Only customers
+  with an active Telegram link are messaged.
+
+**Live bug found by the end-to-end test (unit tests had missed it):** real Stripe events carry
+`*_decimal` fields; `event.to_dict()` turns them into `Decimal`, which JSONB can't store, so the
+webhook returned 500. The fix processes the verified raw JSON body instead, with a regression test.
+I confirmed the old path fails on that payload.
+
+**Live E2E:** created a $5 `pa_test` invoice for Maya, recorded a payment request, paid it with a test
+card through the Stripe API, then replayed the event with `stripe events resend` after the fix: 200,
+payment request `paid`, event marked processed. The test charge was hidden, the leftover test
+invoice voided, and the test card detached.
+
+**Tests:** 15 webhook integration tests (signatures, idempotency, effects, notify-after-commit,
+unlinked customers, handoff resolution, summary invalidation, unknown events, decimals).
+
+**Verification:** `pytest -m "not llm_eval"` (includes live Stripe) → see commit; ruff clean.
+
+Phases 0–8 are complete: every required feature of the brief is built. Next: Phase 9 (bonus: owner MCP).
