@@ -6,8 +6,8 @@ Tracks status against `docs/v0/goal.md`. Updated every loop iteration.
 
 | Limit | Cap | Used |
 |---|---|---|
-| Iterations | 15 | 9 |
-| OpenRouter spend / `llm_eval` runs | ~$4 / 6 runs (raised from ~$2 / 3 by the user) | 4 runs; ~$0.20 incl. live smoke/browser tests (dashboard showed $0.11 / 32 requests before run 4) |
+| Iterations | 15 | 10 |
+| OpenRouter spend / `llm_eval` runs | ~$4 / 6 runs (raised from ~$2 / 3 by the user) | 5 runs; **$0.18** total (OpenRouter key usage) |
 | Repeated-failure streak | 3 | 0 |
 
 | Phase | Estimate | Time box (2×) | Status |
@@ -22,7 +22,7 @@ Tracks status against `docs/v0/goal.md`. Updated every loop iteration.
 | 7 Telegram bot | 35m | 70m | ✅ done (iteration 7) |
 | 8 Stripe webhook | 25m | 50m | ✅ done (iteration 8) — **all required scope complete** |
 | 9 Bonus: owner MCP | 35m | 70m | ✅ done (iteration 9) |
-| 10 Docs + submission | 20m | 40m | next |
+| 10 Docs + submission | 20m | 40m | ✅ done (iteration 10) |
 
 ## Iteration log
 
@@ -380,3 +380,45 @@ Stripe), Maya's last payment $415.00. Test key revoked.
 ruff/eslint/typecheck clean.
 
 **Next:** Phase 10 (README, write-up, fresh-sandbox run).
+
+### Iteration 10: Phase 10, docs and verification (2026-10-03)
+
+**Built:** `README.md` (overview with screenshots, the 4 credentials, setup, seed, how to use each
+surface, a mermaid architecture diagram, the privacy layers, API design, test commands) and
+`write-up.md` (subagent: assumptions, challenges, limitations, bonus rationale, security model, model
+choice and evals, how AI tools were used). At the user's request, the skills used to bootstrap were
+copied (by an agent) into `.claude/skills/` (bootstrap-fullstack, docker-setup, nextjs-setup,
+verbatim) with a README documenting how each was adapted.
+
+**LLM eval run 5 (final code): 11/11** in 152s: 6/6 owner commands, 5/5 customer cases. Total
+OpenRouter spend for the build: $0.18.
+
+**Fresh-environment run (non-destructive):** cloned the committed repo into the scratchpad and
+followed only the README in a separate compose project (`pa-fresh`, ports 3020/8020/5434; `bot`
+excluded so a second poller wouldn't break the user's live bot). Everything came up healthy;
+`/health` 200; `/login` 200. The seed was idempotent against the existing account (7 existed, 0
+created; DB accounts, invites, owner, and MCP key created). Tests on the fresh clone: **409 Python,
+72 Vitest**, ruff/eslint/typecheck clean. Torn down with `down -v`. *Not covered:* a brand-new
+Stripe account. The user didn't provide one, and resetting the current account was avoided because
+the user may be testing Telegram links against it.
+
+**Live execution check:** via MCP against a throwaway `pa_test` customer with a real $12 test charge:
+proposed and confirmed a $5 partial refund → Stripe refund `succeeded` for 500 on that charge;
+proposed and confirmed a $25 invoice "next Friday" → Stripe invoice `open`, `send_invoice`, 2500.
+Cleaned up (invoice voided, charge hidden, customer deleted, key revoked).
+
+**Quality gates:** no real secrets in tracked/new files (the one match is a fake fixture string in a
+UI test); `.env` not tracked; `core/` imports nothing from `http/`, `bot/`, or `mcp/`.
+
+## Goal status (docs/v0/goal.md)
+
+| Section | Status |
+|---|---|
+| A. Builds and runs | ✅ main stack + fresh clone |
+| B. Unit tests | ✅ (core coverage 95%, Vitest 72) |
+| C. Integration tests | ✅ (RLS as `bot`, HTTP, bot, webhook, MCP) |
+| D. Live checks | ✅ `-m stripe` passes, seed idempotent, eval 11/11 |
+| E. Brief requirements, owner side | ✅ live summary (matches the brief's example), refund proposal card in the browser, confirmed refund and invoice executed in Stripe (MCP, throwaway data), week-over-week via eval |
+| E. Brief requirements, customer Telegram | ⏳ **needs the user**: link via invite, "what do I owe?", pay $180 with 4242 → "Payment received ✅", Jordan $2,000 → handoff, privacy prompts |
+| F. Quality gates | ✅ |
+| G. Deliverables | ✅ README, write-up, commit history on `main`. ⚠️ Fresh **Stripe sandbox** run substituted by a fresh-DB clone run (see above) |

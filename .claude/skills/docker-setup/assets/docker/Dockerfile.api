@@ -1,0 +1,19 @@
+# Django API — Debian slim + uv. No apt packages needed because psycopg[binary]
+# ships a prebuilt wheel (no gcc/libpq-dev). Do NOT switch to Alpine.
+FROM python:3.13-slim
+
+WORKDIR /app
+
+# uv for fast, lockfile-pinned installs
+RUN pip install --no-cache-dir uv
+
+# Dependency layer — cached unless pyproject/lock change
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-install-project
+
+# App source
+COPY . .
+RUN uv sync --frozen
+
+EXPOSE 8000
+CMD ["uv", "run", "python", "manage.py", "runserver", "0.0.0.0:8000"]

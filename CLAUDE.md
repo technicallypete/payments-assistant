@@ -11,6 +11,7 @@ pay **only their own** invoices.
   touching auth, the DB, or LLM code.
 - `docs/v0/plan.md`: phased execution plan with checkpoints, test gates, and cut lines.
 - `docs/v0/goal.md`: v0 definition of done (loop goal). `docs/v0/progress.md` tracks status against it.
+- `.claude/skills/README.md`: the bootstrap skills (verbatim copies) and how this repo diverged from them.
 
 ## Stack (see spec §2)
 
