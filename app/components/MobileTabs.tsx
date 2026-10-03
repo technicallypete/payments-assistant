@@ -56,7 +56,17 @@ export function MobileTabs({
       aria-label="Sections"
       className="-mx-3 mt-2 border-t border-rule-strong bg-card pb-[env(safe-area-inset-bottom)] md:hidden"
     >
-      <div role="tablist" aria-label="Dashboard sections" onKeyDown={onKeyDown} className="flex">
+      <div role="tablist" aria-label="Dashboard sections" onKeyDown={onKeyDown} className="relative flex">
+        {/* One indicator that glides to the active tab (instant with reduced motion). */}
+        <span
+          aria-hidden
+          data-testid="tab-indicator"
+          className="pointer-events-none absolute top-0 left-0 h-0.5 bg-accent transition-transform duration-200 ease-out motion-reduce:transition-none"
+          style={{
+            width: `${100 / TABS.length}%`,
+            transform: `translateX(${TABS.findIndex((t) => t.id === active) * 100}%)`,
+          }}
+        />
         {TABS.map((t) => {
           const selected = t.id === active;
           return (
@@ -72,8 +82,8 @@ export function MobileTabs({
               aria-controls={panelId(t.id)}
               tabIndex={selected ? 0 : -1}
               onClick={() => onSelect(t.id)}
-              className={`relative flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 border-t-2 px-0.5 text-[12px] font-semibold whitespace-nowrap ${
-                selected ? "border-accent text-accent" : "border-transparent text-muted"
+              className={`relative flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-0.5 text-[12px] font-semibold whitespace-nowrap transition-colors duration-200 motion-reduce:transition-none ${
+                selected ? "text-accent" : "text-muted"
               }`}
             >
               <span className="flex items-center gap-1">

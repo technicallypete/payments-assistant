@@ -10,6 +10,7 @@ import {
 } from "react";
 
 import { ActionCard } from "@/components/ActionCard";
+import { ConversationPicker } from "@/components/ConversationPicker";
 import { Markdown } from "@/components/Markdown";
 import {
   chatReducer,
@@ -171,22 +172,28 @@ export function Chat({ onActivity }: { onActivity?: () => void }) {
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 md:flex-row max-md:gap-2">
-      <nav aria-label="Conversations" className="md:w-56 md:shrink-0 max-md:flex max-md:min-w-0 max-md:items-center max-md:gap-2">
+      <ConversationPicker
+        conversations={conversations}
+        activeId={activeId}
+        onOpen={(id) => void open(id)}
+        onNew={() => void newConversation()}
+      />
+      <nav aria-label="Conversations" className="md:w-56 md:shrink-0 max-md:hidden">
         <button
           type="button"
           onClick={() => void newConversation()}
-          className="w-full rounded-full border border-rule-strong bg-card px-4 py-2 text-sm font-semibold text-ink hover:border-accent max-md:min-h-11 max-md:w-auto max-md:shrink-0 max-md:px-3"
+          className="w-full rounded-full border border-rule-strong bg-card px-4 py-2 text-sm font-semibold text-ink hover:border-accent"
         >
           + New conversation
         </button>
-        <ul className="mt-3 flex gap-2 overflow-x-auto md:flex-col md:overflow-visible max-md:mt-0 max-md:min-w-0 max-md:flex-1">
+        <ul className="mt-3 flex flex-col gap-2">
           {conversations.map((c) => (
             <li key={c.id} className="shrink-0">
               <button
                 type="button"
                 aria-current={c.id === activeId ? "true" : undefined}
                 onClick={() => void open(c.id)}
-                className={`w-full max-w-60 truncate rounded-lg px-3 py-2 text-left text-sm max-md:max-w-44 max-md:py-1 ${
+                className={`w-full max-w-60 truncate rounded-lg px-3 py-2 text-left text-sm ${
                   c.id === activeId ? "bg-accent-soft text-ink" : "text-ink-2 hover:bg-paper-2"
                 }`}
               >

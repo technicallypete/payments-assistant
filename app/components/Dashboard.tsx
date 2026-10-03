@@ -7,7 +7,7 @@ import { Chat } from "@/components/Chat";
 import { ConnectMcpPanel } from "@/components/ConnectMcpPanel";
 import { CustomersPanel } from "@/components/CustomersPanel";
 import { HandoffsPanel } from "@/components/HandoffsPanel";
-import { MobileTabs, panelId, tabId, type TabId } from "@/components/MobileTabs";
+import { MobileTabs, panelId, TABS, tabId, type TabId } from "@/components/MobileTabs";
 import { TodayPanel } from "@/components/TodayPanel";
 import { ToastProvider } from "@/components/Toast";
 import { api, logout } from "@/lib/client";
@@ -19,6 +19,8 @@ export function Dashboard() {
   const [tick, setTick] = useState(0); // bump to refresh side panels after chat activity
   // Phones show one section at a time (bottom tabs); from md up everything is visible.
   const [tab, setTab] = useState<TabId>("chat");
+  // Direction of the last switch, for the phone slide-in (data-dir on the incoming panel).
+  const [dir, setDir] = useState<"forward" | "back" | null>(null);
   const [needsCount, setNeedsCount] = useState(0);
   const [chatDot, setChatDot] = useState(false);
 
@@ -33,6 +35,9 @@ export function Dashboard() {
 
   function selectTab(id: TabId) {
     setChatDot(false);
+    if (id === tab) return;
+    const order = TABS.map((t) => t.id as TabId);
+    setDir(order.indexOf(id) > order.indexOf(tab) ? "forward" : "back");
     setTab(id);
   }
 
@@ -42,6 +47,8 @@ export function Dashboard() {
     id: panelId(id),
     role: "tabpanel" as const,
     "aria-labelledby": tabId(id),
+    // Panels stay mounted; a panel animates in (phones only, CSS) when it becomes visible.
+    "data-dir": tab === id && dir ? dir : undefined,
   });
 
   async function signOut() {
@@ -60,17 +67,23 @@ export function Dashboard() {
   return (
     <ToastProvider>
       <div className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col px-4 py-5 md:px-8 max-md:h-dvh max-md:flex-none max-md:overflow-hidden max-md:px-3 max-md:pb-0 max-md:pt-3">
-        <header className="mb-5 flex items-center justify-between border-b-2 border-double border-rule-strong pb-3 max-md:mb-3 max-md:pb-2">
-          <div className="flex items-baseline gap-3">
+        <header className="mb-5 flex items-center justify-between gap-3 border-b-2 border-double border-rule-strong pb-3 max-md:mb-3 max-md:pb-2">
+          <div className="flex shrink-0 items-baseline gap-3">
             <h1 className="font-display text-3xl font-semibold tracking-tight text-ink max-md:text-2xl">Penny</h1>
             <p className="hidden text-sm italic text-muted sm:block">your payments, kept in good order</p>
           </div>
-          <div className="flex items-center gap-4 text-sm">
-            <span className="hidden text-muted md:inline">{owner.email}</span>
+          <div className="flex min-w-0 items-center gap-4 text-sm max-md:gap-2">
+            <span
+              data-testid="owner-email"
+              title={owner.email}
+              className="min-w-0 truncate text-muted max-md:text-xs"
+            >
+              {owner.email}
+            </span>
             <button
               type="button"
               onClick={() => void signOut()}
-              className="text-ink-2 underline-offset-2 hover:underline max-md:min-h-11 max-md:px-1"
+              className="shrink-0 text-ink-2 underline-offset-2 hover:underline max-md:min-h-11 max-md:px-1"
             >
               Sign out
             </button>

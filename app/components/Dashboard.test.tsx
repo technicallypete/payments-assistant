@@ -70,4 +70,23 @@ describe("Dashboard phone tabs", () => {
     await renderDashboard();
     expect((await screen.findByLabelText("2 open", { selector: "[role=tab] span" })).textContent).toBe("2");
   });
+
+  it("tab switches mark the incoming panel with the direction of travel", async () => {
+    await renderDashboard();
+    expect(panel("chat").dataset.dir).toBeUndefined(); // no animation on first paint
+    fireEvent.click(screen.getByRole("tab", { name: /Customers/ }));
+    expect(panel("customers").dataset.dir).toBe("forward");
+    fireEvent.click(screen.getByRole("tab", { name: /Today/ }));
+    expect(panel("today").dataset.dir).toBe("back");
+    expect(panel("customers").dataset.dir).toBeUndefined();
+    expect(panel("chat")).toBeTruthy(); // still mounted
+  });
+
+  it("shows the signed-in email in the header (phones included), with the full address as title", async () => {
+    await renderDashboard();
+    const email = screen.getByTestId("owner-email");
+    expect(email.textContent).toBe("owner@example.com");
+    expect(email.getAttribute("title")).toBe("owner@example.com");
+    expect(email.className).not.toMatch(/(^|\s)hidden(\s|$)/);
+  });
 });
