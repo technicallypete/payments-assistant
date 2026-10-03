@@ -4,8 +4,16 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from starlette.routing import Route
 
 from payments_assistant.http.state import AppState
+
+
+class _MCPRoute:
+    """A callable object (not a function), so Starlette passes raw ASGI through to MCP."""
+
+    async def __call__(self, scope, receive, send) -> None:
+        await scope["app"].state.mcp(scope, receive, send)
 
 
 def create_app(state: AppState | None = None) -> FastAPI:
@@ -19,7 +27,12 @@ def create_app(state: AppState | None = None) -> FastAPI:
             from payments_assistant.http.state import build_default_state
 
             app.state.app_state = build_default_state(get_settings())
-        yield
+        from payments_assistant.mcp.server import MCPEndpoint
+
+        mcp = MCPEndpoint(app.state.app_state)
+        app.state.mcp = mcp
+        async with mcp.manager.run():
+            yield
         if owns_state:
             await app.state.app_state.engine.dispose()
 
@@ -34,6 +47,9 @@ def create_app(state: AppState | None = None) -> FastAPI:
     from payments_assistant.http.routes import register_routes
 
     register_routes(app)
+
+    # Exact-path raw-ASGI route (a Mount would 307-redirect POST /mcp to /mcp/, breaking clients).
+    app.router.routes.append(Route("/mcp", endpoint=_MCPRoute(), methods=["GET", "POST", "DELETE"]))
     return app
 
 

@@ -6,7 +6,7 @@ Tracks status against `docs/v0/goal.md`. Updated every loop iteration.
 
 | Limit | Cap | Used |
 |---|---|---|
-| Iterations | 15 | 8 |
+| Iterations | 15 | 9 |
 | OpenRouter spend / `llm_eval` runs | ~$4 / 6 runs (raised from ~$2 / 3 by the user) | 4 runs; ~$0.20 incl. live smoke/browser tests (dashboard showed $0.11 / 32 requests before run 4) |
 | Repeated-failure streak | 3 | 0 |
 
@@ -21,8 +21,8 @@ Tracks status against `docs/v0/goal.md`. Updated every loop iteration.
 | 6 Next BFF + UI | 50m | 100m | ✅ done (iteration 6) |
 | 7 Telegram bot | 35m | 70m | ✅ done (iteration 7) |
 | 8 Stripe webhook | 25m | 50m | ✅ done (iteration 8) — **all required scope complete** |
-| 9 Bonus: owner MCP | 35m | 70m | next |
-| 10 Docs + submission | 20m | 40m | |
+| 9 Bonus: owner MCP | 35m | 70m | ✅ done (iteration 9) |
+| 10 Docs + submission | 20m | 40m | next |
 
 ## Iteration log
 
@@ -337,6 +337,46 @@ invoice voided, and the test card detached.
 **Tests:** 15 webhook integration tests (signatures, idempotency, effects, notify-after-commit,
 unlinked customers, handoff resolution, summary invalidation, unknown events, decimals).
 
-**Verification:** `pytest -m "not llm_eval"` (includes live Stripe) → see commit; ruff clean.
+**Verification:** `pytest -m "not llm_eval"` (includes live Stripe) → **390 passed**; core coverage 95%; ruff clean.
 
 Phases 0–8 are complete: every required feature of the brief is built. Next: Phase 9 (bonus: owner MCP).
+
+### Iteration 9: Phase 9, bonus owner MCP server (2026-10-03)
+
+I built the key service and the MCP server; a subagent built the key CLI, HTTP routes, UI panel,
+Next rewrite, and seed integration.
+
+**Built:**
+- `core/services/api_keys.py`: `pak_` keys (sha256 stored + display prefix), resolve (last_used
+  throttled), list, and revoke (audited).
+- `mcp/server.py` on **MCP SDK 2.3.0**: a low-level `Server` with `on_list_tools`/`on_call_tool`,
+  stateless streamable HTTP with JSON responses. Tool schemas come straight from the registry (no
+  drift). Annotations: reads `read_only`, `propose_*` non-destructive, `confirm_action`
+  `destructive_hint` (clients ask the human), plus `cancel_action`. Calls run in an `api`-role
+  transaction with `ToolContext(api_key_id=...)`, so proposals are bound to the key and audited as
+  `owner_mcp`. `MCPEndpoint` ASGI wrapper: Bearer `pak_` only (session tokens → 401 with
+  WWW-Authenticate); the principal passes via a ContextVar.
+- Mounted as an exact raw-ASGI `Route("/mcp")` (a Mount 307-redirects POST /mcp → /mcp/). The
+  session manager runs in the FastAPI lifespan. DNS-rebinding protection is off deliberately
+  (keyed auth; reached as `api:8000` via Next).
+- Subagent: `python -m payments_assistant.keys create|list|revoke`; `/api-keys` GET/POST/DELETE (the
+  key is shown once with ready-to-paste Claude Code and Claude Desktop (`mcp-remote`) config);
+  `core/client_config.py`; the "Connect Claude" dashboard panel; a Next `beforeFiles` rewrite of
+  `/mcp` → API (the client's Authorization passes through); BFF allowlist `api-keys`; the seed prints a
+  key and snippets; OpenAPI/TS types regenerated (18 paths).
+
+**Tests:** MCP integration 13 (real MCP `ClientSession` over httpx2 ASGI with lifespan): 401 for
+missing/fake/revoked keys and session tokens, API keys rejected on the web API, `tools/list` ==
+owner registry (schemas identical, no customer tools), structured reads, tool errors as `is_error`,
+propose → confirm executes once with `owner_mcp` audit, other key / expired / cancelled refused.
+API keys HTTP 8 + client config 2. Vitest +3 (panel).
+
+**Live:** after restarting `api` (new dependency), POST localhost:3010/mcp without a key → 401
+through the Next rewrite. With a CLI-minted key, a real MCP session via `http://app:3000/mcp`:
+server `penny-payments`, 9 tools, `get_activity(today)` → $4,280.00 / 8 payments / 2 failed (live
+Stripe), Maya's last payment $415.00. Test key revoked.
+
+**Verification:** Python **413 passed** (incl. live Stripe), coverage core+http+mcp 94%; Vitest **72**;
+ruff/eslint/typecheck clean.
+
+**Next:** Phase 10 (README, write-up, fresh-sandbox run).

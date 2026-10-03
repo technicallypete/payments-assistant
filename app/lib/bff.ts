@@ -23,6 +23,7 @@ export const ALLOWED_PREFIXES = [
   "summaries",
   "handoffs",
   "customers",
+  "api-keys",
 ] as const;
 
 const FORWARD_REQUEST_HEADERS = ["content-type", "accept", "user-agent", "accept-language"];

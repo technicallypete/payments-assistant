@@ -31,8 +31,9 @@ pay **only their own** invoices.
 - Tools: define each tool **once** in `core/tools/` (`@tool`, Pydantic input/output, `ToolContext` built
   from the authenticated actor). LangChain (`core/agents`) and MCP (`mcp/`) are thin adapters over the
   registry. Never define a tool inside an adapter.
-- Owner MCP server (the bonus feature): FastMCP, streamable HTTP, mounted at `/mcp` on `api`, owner API
-  keys only (`pak_…`). Owner tools only. Customers get no MCP surface.
+- Owner MCP server (the bonus feature): MCP SDK 2.3 low-level `Server` (`mcp/server.py`), stateless
+  streamable HTTP at an exact `/mcp` route on `api` (Next rewrites `/mcp` to it), owner API keys only
+  (`pak_…`, `python -m payments_assistant.keys`). Owner tools only. Customers get no MCP surface.
 
 ## Development: Docker only
 

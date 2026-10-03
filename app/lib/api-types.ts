@@ -11,7 +11,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Actions */
+        /**
+         * List Actions
+         * @description Pending web proposals (default): still `proposed` and not yet past their expiry.
+         */
         get: operations["list_actions_actions_get"];
         put?: never;
         post?: never;
@@ -53,6 +56,41 @@ export interface paths {
          */
         post: operations["confirm_action_actions__action_id__confirm_post"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Keys */
+        get: operations["list_keys_api_keys_get"];
+        put?: never;
+        /** Create Key */
+        post: operations["create_key_api_keys_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api-keys/{key_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke Key */
+        delete: operations["revoke_key_api_keys__key_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -320,6 +358,34 @@ export interface components {
             /** Stripe Object Id */
             stripe_object_id: string | null;
         };
+        /** ApiKeyOut */
+        ApiKeyOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Display Prefix */
+            display_prefix: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Last Used At */
+            last_used_at: string | null;
+            /** Name */
+            name: string;
+            /** Revoked At */
+            revoked_at: string | null;
+        };
+        /** ClientConfigOut */
+        ClientConfigOut: {
+            /** Claude Code */
+            claude_code: string;
+            /** Claude Desktop */
+            claude_desktop: string;
+        };
         /** ConversationDetail */
         ConversationDetail: {
             /**
@@ -366,6 +432,31 @@ export interface components {
         CreateConversationIn: {
             /** Title */
             title?: string | null;
+        };
+        /** CreateKeyIn */
+        CreateKeyIn: {
+            /**
+             * Name
+             * @default API key
+             */
+            name: string;
+        };
+        /** CreatedKeyOut */
+        CreatedKeyOut: {
+            config: components["schemas"]["ClientConfigOut"];
+            /** Display Prefix */
+            display_prefix: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Key */
+            key: string;
+            /** Mcp Url */
+            mcp_url: string;
+            /** Name */
+            name: string;
         };
         /** CustomerOut */
         CustomerOut: {
@@ -621,6 +712,103 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ActionOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_keys_api_keys_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiKeyOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_key_api_keys_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateKeyIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedKeyOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_key_api_keys__key_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                key_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

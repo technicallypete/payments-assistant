@@ -394,6 +394,30 @@ async def seed_database(
     return out
 
 
+async def create_seed_key(settings: Settings, *, database_url: str | None = None):
+    """Mint one MCP API key for the owner. A new key each run; old ones stay valid until revoked."""
+    from payments_assistant.core.services import api_keys
+
+    if not settings.owner_email:
+        return None
+    engine = make_engine(database_url or settings.database_url)
+    try:
+        maker = async_sessionmaker(engine, expire_on_commit=False)
+        async with maker() as session, session.begin():
+            owner = (
+                await session.execute(
+                    select(Owner).where(func.lower(Owner.email) == settings.owner_email.lower())
+                )
+            ).scalar_one_or_none()
+            if owner is None:
+                return None
+            return await api_keys.create(
+                session, owner_id=owner.id, name="seed", now=datetime.now(UTC)
+            )
+    finally:
+        await engine.dispose()
+
+
 async def upsert_owner(session, email: str, password: str) -> Owner:
     owner = (
         await session.execute(select(Owner).where(func.lower(Owner.email) == email.lower()))
@@ -455,6 +479,14 @@ def main(argv: list[str] | None = None) -> None:
 
     app_url = os.environ.get("APP_ORIGIN", "http://localhost:3010")
     print(f"\nOwner login: {settings.owner_email or '(OWNER_EMAIL not set)'} at {app_url}")
+
+    key = asyncio.run(create_seed_key(settings))
+    if key is not None:
+        from payments_assistant.core.client_config import client_snippets, format_snippets
+
+        print("\nMCP API key (bonus: manage payments from Claude). Shown once; a new key each run:")
+        print(f"  {key.key}\n")
+        print(format_snippets(client_snippets(key.key)))
 
 
 if __name__ == "__main__":

@@ -10,3 +10,5 @@ export type Handoff = S["HandoffOut"];
 export type Customer = S["CustomerOut"];
 export type Invite = S["InviteOut"];
 export type Owner = S["OwnerOut"];
+export type ApiKey = S["ApiKeyOut"];
+export type CreatedKey = S["CreatedKeyOut"];

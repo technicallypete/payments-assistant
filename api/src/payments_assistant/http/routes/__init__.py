@@ -13,6 +13,7 @@ ROUTE_MODULES = [
     "handoffs",
     "customers",
     "webhooks",
+    "api_keys",
 ]
 
 

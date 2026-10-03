@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { Chat } from "@/components/Chat";
+import { ConnectClaudePanel } from "@/components/ConnectClaudePanel";
 import { CustomersPanel } from "@/components/CustomersPanel";
 import { HandoffsPanel } from "@/components/HandoffsPanel";
 import { TodayPanel } from "@/components/TodayPanel";
@@ -59,6 +60,7 @@ export function Dashboard() {
             <TodayPanel />
             <HandoffsPanel refreshKey={tick} />
             <CustomersPanel refreshKey={tick} />
+            <ConnectClaudePanel />
           </aside>
         </div>
       </div>
