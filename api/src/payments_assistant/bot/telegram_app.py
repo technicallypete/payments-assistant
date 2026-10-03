@@ -121,9 +121,34 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             await typing
 
 
+def username_mismatch(configured: str, actual: str | None) -> str | None:
+    """A warning if TELEGRAM_BOT_USERNAME doesn't match the bot behind the token, else None.
+
+    The configured name is what invite links use (t.me/<name>?start=...), so a typo there sends
+    customers to the wrong bot while the bot itself runs fine."""
+    if not actual:
+        return None
+    if configured.lstrip("@").lower() == actual.lower():
+        return None
+    return (
+        f"TELEGRAM_BOT_USERNAME is {configured!r} but the token belongs to @{actual}. "
+        f"Invite links will point at the wrong bot: set TELEGRAM_BOT_USERNAME={actual} in .env "
+        "and restart api and bot."
+    )
+
+
 async def _post_init(application: Application) -> None:
     with contextlib.suppress(Exception):
         await application.bot.set_my_commands(COMMANDS)
+    state: BotState = application.bot_data[STATE_KEY]
+    try:
+        me = await application.bot.get_me()
+    except Exception:  # network hiccup at startup; polling will surface real problems
+        logger.warning("could not verify the bot's username with Telegram")
+        return
+    logger.info("Telegram bot is @%s", me.username)
+    if warning := username_mismatch(state.settings.telegram_bot_username, me.username):
+        logger.error(warning)
 
 
 def build_application(state: BotState, token: str) -> Application:

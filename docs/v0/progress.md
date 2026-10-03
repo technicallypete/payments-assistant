@@ -292,7 +292,7 @@ I wrote the library-independent bot service; a subagent wrote the python-telegra
   4096-char splitting; errors → fallback reply, never internals; `notify()` helper for the webhook.
 - `bot/__main__.py`: real long-polling entrypoint (bot DB role, live customer gateway, configured
   model); idles with a clear log if the token is missing; httpx logging quieted so the token never
-  hits logs. Running live as @edger_payments_bot.
+  hits logs. Running live as @ledger_payments_bot.
 - Fix: `append_message` only sets titles on owner conversations (the bot role can't update
   conversation titles, by design).
 
@@ -422,3 +422,12 @@ UI test); `.env` not tracked; `core/` imports nothing from `http/`, `bot/`, or `
 | E. Brief requirements, customer Telegram | ⏳ **needs the user**: link via invite, "what do I owe?", pay $180 with 4242 → "Payment received ✅", Jordan $2,000 → handoff, privacy prompts |
 | F. Quality gates | ✅ |
 | G. Deliverables | ✅ README, write-up, commit history on `main`. ⚠️ Fresh **Stripe sandbox** run substituted by a fresh-DB clone run (see above) |
+
+### Post-loop fix (2026-10-03): bot username typo
+
+The user noticed the invite links used `edger_payments_bot`; Telegram's `getMe` for the token says
+`ledger_payments_bot`. The cause was a typo in `.env` (`TELEGRAM_BOT_USERNAME`), and the startup log
+echoed the configured name, which hid it. Fixed `.env`, recreated api/bot, and minted new invite links
+(old links pointed at the wrong bot). To prevent a repeat, the bot now calls `getMe` at startup, logs
+the real `@username`, and logs an error with the exact fix when `TELEGRAM_BOT_USERNAME` doesn't match
+(`telegram_app.username_mismatch`, unit-tested).

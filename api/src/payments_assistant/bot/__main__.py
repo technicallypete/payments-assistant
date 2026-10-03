@@ -37,7 +37,10 @@ def main() -> None:
         model=lambda: get_chat_model(settings),
     )
     application = build_application(state, settings.telegram_bot_token)
-    logger.info("starting Telegram long polling as @%s", settings.telegram_bot_username or "?")
+    logger.info(
+        "starting Telegram long polling (invite links use @%s)",
+        settings.telegram_bot_username or "?",
+    )
     # run_polling deletes any webhook first and manages its own event loop.
     application.run_polling(allowed_updates=[Update.MESSAGE], drop_pending_updates=False)
 

@@ -145,3 +145,13 @@ def test_commands_routed_not_to_text_handler(cmd):
     u.message.set_bot(stub_bot)
     matched = [h for h in app.handlers[0] if h.check_update(u)]
     assert len(matched) == 1 and matched[0].callback.__name__ != "on_text"
+
+
+def test_username_mismatch_detection():
+    from payments_assistant.bot.telegram_app import username_mismatch
+
+    assert username_mismatch("ledger_payments_bot", "ledger_payments_bot") is None
+    assert username_mismatch("@Ledger_Payments_Bot", "ledger_payments_bot") is None
+    assert username_mismatch("anything", None) is None
+    warning = username_mismatch("edger_payments_bot", "ledger_payments_bot")
+    assert warning and "TELEGRAM_BOT_USERNAME=ledger_payments_bot" in warning
