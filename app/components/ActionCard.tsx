@@ -61,12 +61,13 @@ export function ActionCard({
   const stamp = STAMPS[action.state];
   return (
     <section
-      aria-label={`${TITLES[action.actionType] ?? "Action"} awaiting your decision`}
+      aria-label={`${TITLES[action.actionType] ?? "Action"}${open ? " awaiting your decision" : ""}`}
       className="sheet relative mt-3 overflow-hidden border-l-4 border-l-gold p-4"
     >
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gold">
-          {TITLES[action.actionType] ?? action.actionType} · needs your OK
+          {TITLES[action.actionType] ?? action.actionType}
+          {open ? " · needs your OK" : ""}
         </p>
         {open && left && (
           <span className="tabular text-xs text-muted" aria-label={`Expires in ${left}`}>

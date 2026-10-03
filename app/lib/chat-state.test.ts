@@ -124,9 +124,9 @@ describe("chatReducer", () => {
 
   it("load keeps user/assistant messages, drops tool rows, and keeps only proposed pending actions", () => {
     const messages: ApiMessage[] = [
-      { id: "1", role: "user", content: "hi", status: "complete", tool_name: null, created_at: "t" },
-      { id: "2", role: "tool", content: "", status: "complete", tool_name: "get_activity", created_at: "t" },
-      { id: "3", role: "assistant", content: "Hello", status: "interrupted", tool_name: null, created_at: "t" },
+      { id: "1", role: "user", content: "hi", status: "complete", tool_name: null, created_at: "t" , actions: [] },
+      { id: "2", role: "tool", content: "", status: "complete", tool_name: "get_activity", created_at: "t" , actions: [] },
+      { id: "3", role: "assistant", content: "Hello", status: "interrupted", tool_name: null, created_at: "t" , actions: [] },
     ];
     const s = chatReducer(emptyChat, {
       type: "load",
@@ -138,6 +138,35 @@ describe("chatReducer", () => {
       ["assistant", "interrupted"],
     ]);
     expect(s.pending.map((a) => a.id)).toEqual(["act-1"]);
+  });
+
+  it("load restores each reply's cards with their current status (bug: reloads lost them)", () => {
+    const messages: ApiMessage[] = [
+      { id: "1", role: "user", content: "refund maya", status: "complete", tool_name: null, created_at: "t" , actions: [] },
+      {
+        id: "2",
+        role: "assistant",
+        content: "Check the card and hit Confirm.",
+        status: "complete",
+        tool_name: null,
+        created_at: "t",
+        actions: [action({ id: "old", status: "expired" })],
+      },
+      {
+        id: "3",
+        role: "assistant",
+        content: "Another one.",
+        status: "complete",
+        tool_name: null,
+        created_at: "t",
+        actions: [action({ id: "live" })],
+      },
+    ];
+    const s = chatReducer(emptyChat, { type: "load", messages, pending: [action({ id: "live" })] });
+    expect(s.messages[1].actions.map((a) => [a.id, a.state])).toEqual([["old", "expired"]]);
+    expect(s.messages[2].actions.map((a) => [a.id, a.state])).toEqual([["live", "proposed"]]);
+    // A pending card shown inline isn't repeated in "Still waiting on you".
+    expect(visiblePending(s).map((a) => a.id)).toEqual([]);
   });
 
   it("action_update patches cards in messages and in the pending list", () => {

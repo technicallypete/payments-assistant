@@ -26,12 +26,17 @@ class ActionOut(BaseModel):
     created_at: datetime
 
 
-def _out(a: OwnerAction) -> ActionOut:
+def action_out(a: OwnerAction, *, now: datetime | None = None) -> ActionOut:
+    """`now` given: a proposal past its expiry reports `expired` even if nobody tried to confirm
+    it (the stored status only flips when a confirm is attempted)."""
+    status = a.status
+    if now is not None and status == "proposed" and a.expires_at <= now:
+        status = "expired"
     return ActionOut(
         id=a.id,
         action_type=a.action_type,
         preview=a.preview,
-        status=a.status,
+        status=status,
         stripe_object_id=a.stripe_object_id,
         error=a.error,
         expires_at=a.expires_at,
@@ -53,7 +58,7 @@ async def list_actions(
     if status_filter == "proposed":
         q = q.where(OwnerAction.status == "proposed", OwnerAction.expires_at > state.clock())
     rows = (await session.execute(q.order_by(OwnerAction.created_at.desc()).limit(50))).scalars()
-    return [_out(a) for a in rows]
+    return [action_out(a) for a in rows]
 
 
 @router.post("/{action_id}/confirm", response_model=ActionOut)
@@ -73,7 +78,7 @@ async def confirm_action(
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
     except actions.ActionStateError as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
-    return _out(action)
+    return action_out(action)
 
 
 @router.post("/{action_id}/cancel", response_model=ActionOut)
@@ -84,4 +89,4 @@ async def cancel_action(action_id: UUID, owner: Owner, session: Session) -> Acti
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
     except actions.ActionStateError as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
-    return _out(action)
+    return action_out(action)

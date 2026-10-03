@@ -511,6 +511,14 @@
       },
       "MessageOut": {
         "properties": {
+          "actions": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ActionOut"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
           "content": {
             "title": "Content",
             "type": "string"

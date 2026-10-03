@@ -431,3 +431,15 @@ echoed the configured name, which hid it. Fixed `.env`, recreated api/bot, and m
 (old links pointed at the wrong bot). To prevent a repeat, the bot now calls `getMe` at startup, logs
 the real `@username`, and logs an error with the exact fix when `TELEGRAM_BOT_USERNAME` doesn't match
 (`telegram_app.username_mismatch`, unit-tested).
+
+### Post-loop fix (2026-10-03): proposal cards missing after reload
+
+Reported by the user (screenshot: Penny says "check the confirmation card", but no card). Cause:
+cards were only attached to live-streamed replies. A reloaded conversation showed pending proposals
+only in "Still waiting on you", and expired, cancelled, or executed proposals nowhere. Fix:
+`GET /conversations/{id}` now returns each reply's proposals (matched to the first assistant reply
+written at or after the proposal) with their current status. A proposal past its expiry reports
+`expired`. The UI renders them inline: pending ones stay actionable, others show their stamp, and
+the header says "needs your OK" only while open. Tests: an API integration test (proposed →
+expired → cancelled on reload) and a reducer test; verified in headless Chromium on the user's
+conversation (EXPIRED stamp under the reply).

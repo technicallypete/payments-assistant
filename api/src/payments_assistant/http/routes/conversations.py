@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 
 from payments_assistant.core.agents.events import (
     ActionProposed,
@@ -18,9 +19,11 @@ from payments_assistant.core.agents.events import (
     Token,
 )
 from payments_assistant.core.agents.owner_agent import run_owner_turn
+from payments_assistant.core.models import OwnerAction
 from payments_assistant.core.services import conversations as convs
 from payments_assistant.core.tools import ToolContext
 from payments_assistant.http.deps import Owner, Session, State
+from payments_assistant.http.routes.actions import ActionOut, action_out
 from payments_assistant.http.sse import sse_frame, sse_response
 from payments_assistant.http.state import AppState
 
@@ -42,6 +45,9 @@ class MessageOut(BaseModel):
     status: str
     tool_name: str | None
     created_at: datetime
+    # Proposals made during this assistant turn, with their CURRENT status, so a reloaded
+    # conversation still shows its cards (pending ones actionable, others as result stamps).
+    actions: list[ActionOut] = []
 
 
 class ConversationDetail(ConversationOut):
@@ -81,7 +87,7 @@ async def list_conversations(owner: Owner, session: Session) -> list[Conversatio
 
 @router.get("/{conversation_id}", response_model=ConversationDetail)
 async def get_conversation(
-    conversation_id: UUID, owner: Owner, session: Session
+    conversation_id: UUID, owner: Owner, session: Session, state: State
 ) -> ConversationDetail:
     conv = await convs.get_owner_conversation(
         session, owner_id=owner.owner_id, conversation_id=conversation_id
@@ -89,6 +95,17 @@ async def get_conversation(
     if conv is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Conversation not found.")
     messages = await convs.list_messages(session, conv.id)
+    by_message = _actions_by_message(
+        messages,
+        (
+            await session.execute(
+                select(OwnerAction)
+                .where(OwnerAction.conversation_id == conv.id, OwnerAction.api_key_id.is_(None))
+                .order_by(OwnerAction.created_at)
+            )
+        ).scalars(),
+        now=state.clock(),
+    )
     return ConversationDetail(
         **_conv_out(conv).model_dump(),
         messages=[
@@ -99,10 +116,25 @@ async def get_conversation(
                 status=m.status,
                 tool_name=m.tool_name,
                 created_at=m.created_at,
+                actions=by_message.get(m.id, []),
             )
             for m in messages
         ],
     )
+
+
+def _actions_by_message(messages, actions, *, now: datetime) -> dict[UUID, list[ActionOut]]:
+    """Attach each proposal to the assistant reply of the turn that created it: the first assistant
+    message written at or after the proposal (replies are persisted when the turn ends)."""
+    replies = [m for m in messages if m.role == "assistant"]
+    out: dict[UUID, list[ActionOut]] = {}
+    for a in actions:
+        reply = next((m for m in replies if m.created_at >= a.created_at), None)
+        if reply is None and replies:
+            reply = replies[-1]
+        if reply is not None:
+            out.setdefault(reply.id, []).append(action_out(a, now=now))
+    return out
 
 
 @router.post("/{conversation_id}/messages")

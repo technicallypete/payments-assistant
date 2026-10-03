@@ -134,3 +134,34 @@ async def test_empty_message_rejected(owner_client):
     assert (
         await owner_client.post(f"/conversations/{conv}/messages", json={"content": ""})
     ).status_code == 422
+
+
+async def test_reloaded_conversation_carries_its_cards_with_current_status(owner_client, harness):
+    """A reload must still show the proposal under the reply that made it (bug: it vanished)."""
+    from datetime import timedelta
+
+    conv = await _new_conversation(owner_client)
+    harness.set_script(
+        reply("", ("propose_refund", {"charge_id": MAYA_LAST_CHARGE})),
+        reply("Check the card and hit Confirm."),
+    )
+    r = await owner_client.post(f"/conversations/{conv}/messages", json={"content": "refund maya"})
+    action_id = next(e for e in parse_sse(r.text) if e["type"] == "action_proposed")["action_id"]
+
+    def cards(detail):
+        return {m["role"]: m["actions"] for m in detail["messages"] if m["actions"]}
+
+    detail = (await owner_client.get(f"/conversations/{conv}")).json()
+    assert list(cards(detail)) == ["assistant"]  # attached to the reply, not the user message
+    (card,) = cards(detail)["assistant"]
+    assert card["id"] == action_id and card["status"] == "proposed"
+
+    start = harness.state.clock()
+    harness.state.clock = lambda: start + timedelta(minutes=11)
+    (card,) = cards((await owner_client.get(f"/conversations/{conv}")).json())["assistant"]
+    assert card["status"] == "expired"  # past expiry reads as expired, not a dead Confirm button
+
+    harness.state.clock = lambda: start
+    await owner_client.post(f"/actions/{action_id}/cancel")
+    (card,) = cards((await owner_client.get(f"/conversations/{conv}")).json())["assistant"]
+    assert card["status"] == "cancelled"

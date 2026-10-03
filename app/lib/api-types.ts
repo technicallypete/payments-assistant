@@ -547,6 +547,11 @@ export interface components {
         };
         /** MessageOut */
         MessageOut: {
+            /**
+             * Actions
+             * @default []
+             */
+            actions: components["schemas"]["ActionOut"][];
             /** Content */
             content: string;
             /**

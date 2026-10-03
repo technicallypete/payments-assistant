@@ -142,7 +142,9 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
           content: m.content,
           status: (m.role === "assistant" ? m.status : "complete") as MessageStatus,
           tools: [],
-          actions: [],
+          // Cards from earlier turns come back with their current status: pending ones stay
+          // actionable, finished/expired ones render as result stamps.
+          actions: (m.actions ?? []).map(fromApiAction),
         }));
       return {
         messages,
