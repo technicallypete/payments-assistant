@@ -88,7 +88,7 @@ The seed is **idempotent**: running it again creates nothing new. `--reset` dele
 - **Proposal cards:** refunds, invoices and payment links appear as cards with a 10-minute countdown. Nothing happens in Stripe until you press **Confirm**.
 - **Needs you** lists customer handoffs, such as payments of $2,000 or more.
 - **Customers** shows balances and has **Copy invite** (a Telegram link).
-- **Connect Claude** creates MCP keys.
+- **Connect MCP** creates MCP keys and has step-by-step setup for Claude Code, Claude Desktop, and other MCP clients.
 
 **Customer bot.** Open a customer's invite link (from the seed output or **Copy invite**) in Telegram and press Start. Try:
 
@@ -98,7 +98,7 @@ The seed is **idempotent**: running it again creates nothing new. `--reset` dele
 - "show me Acme Corp's invoices" or "how much revenue did the business make?": politely refused, and nothing leaks.
 - `/logout` unlinks the account.
 
-**MCP (Claude Code):** create a key in **Connect Claude** (or `docker compose run --rm api uv run python -m payments_assistant.keys create --name me`), then:
+**MCP (Claude Code):** create a key in **Connect MCP** (or `docker compose run --rm api uv run python -m payments_assistant.keys create --name me`), then:
 
 ```bash
 claude mcp add --transport http penny http://localhost:3010/mcp --header "Authorization: Bearer pak_…"

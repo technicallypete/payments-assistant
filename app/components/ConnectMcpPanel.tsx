@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { useToast } from "@/components/Toast";
 import { api, ApiError } from "@/lib/client";
@@ -8,10 +8,24 @@ import { relativeTime } from "@/lib/format";
 import type { ApiKey, CreatedKey } from "@/lib/types";
 
 /**
- * Bonus: let the owner drive Penny from Claude (Desktop or Code) over MCP. Keys are shown once;
- * the API stores only a hash. Every money movement still needs a confirm_action call.
+ * Bonus: let the owner drive Penny from any MCP client (Claude Code / Claude Desktop shown as the
+ * worked examples). Keys are shown once; the API stores only a hash. Every money movement still
+ * needs a confirm_action call.
  */
-export function ConnectClaudePanel() {
+const noopSubscribe = () => () => {};
+
+/** This app's /mcp URL (the Next rewrite forwards it to the API). Server render uses a neutral
+ * placeholder so hydration matches; the client fills in its real origin. */
+function useMcpUrl(): string {
+  return useSyncExternalStore(
+    noopSubscribe,
+    () => `${window.location.origin}/mcp`,
+    () => "/mcp",
+  );
+}
+
+export function ConnectMcpPanel() {
+  const mcpUrl = useMcpUrl();
   const [keys, setKeys] = useState<ApiKey[] | null>(null);
   const [created, setCreated] = useState<CreatedKey | null>(null);
   const [busy, setBusy] = useState(false);
@@ -77,7 +91,7 @@ export function ConnectClaudePanel() {
     <section aria-labelledby="connect-h" className="sheet p-5">
       <div className="flex items-baseline justify-between">
         <h2 id="connect-h" className="font-display text-xl text-ink">
-          Connect Claude
+          Connect MCP
         </h2>
         <button
           type="button"
@@ -89,9 +103,11 @@ export function ConnectClaudePanel() {
         </button>
       </div>
       <p className="mt-2 text-sm text-muted">
-        Manage payments from Claude Desktop or Claude Code. Refunds and invoices still wait for
-        your confirmation.
+        Use Penny&apos;s tools from an MCP client such as Claude Code or Claude Desktop. Refunds
+        and invoices still wait for your confirmation.
       </p>
+
+      <McpSteps mcpUrl={created?.mcp_url ?? mcpUrl} keyHint={created ? created.key : null} />
 
       {created && (
         <div role="status" className="mt-4 rounded-xl border border-gold bg-gold-soft p-3">
@@ -162,5 +178,53 @@ export function ConnectClaudePanel() {
         </ul>
       )}
     </section>
+  );
+}
+
+const STEP_CODE = "money mt-1 block break-all rounded-md bg-paper px-2 py-1 text-[12px] text-ink";
+
+/** Setup guide. With a freshly created key the commands include it; otherwise a placeholder. */
+function McpSteps({ mcpUrl, keyHint }: { mcpUrl: string; keyHint: string | null }) {
+  const key = keyHint ?? "pak_YOUR_KEY";
+  return (
+    <details className="mt-3 rounded-xl border border-rule p-3 text-sm text-ink-2">
+      <summary className="cursor-pointer select-none font-semibold text-ink">How to connect</summary>
+      <ol className="mt-3 list-decimal space-y-3 pl-5">
+        <li>
+          Click <strong>Create key</strong> and copy it. It&apos;s shown only once; only a hash
+          is stored.
+        </li>
+        <li>
+          <strong>Claude Code:</strong> in your terminal run
+          <code className={STEP_CODE}>
+            claude mcp add --transport http penny {mcpUrl} --header &quot;Authorization: Bearer{" "}
+            {key}&quot;
+          </code>
+          then start <code className="money">claude</code> and check <code className="money">/mcp</code>{" "}
+          lists <strong>penny</strong> as connected.
+        </li>
+        <li>
+          <strong>Claude Desktop:</strong> use <strong>Copy Claude Desktop config</strong> (after
+          creating a key), paste it into <code className="money">claude_desktop_config.json</code>{" "}
+          and restart Desktop. It bridges with <code className="money">npx mcp-remote</code>, so
+          Node must be installed.
+        </li>
+        <li>
+          <strong>Other MCP clients:</strong> point them at{" "}
+          <code className="money break-all">{mcpUrl}</code> (streamable HTTP) with the header{" "}
+          <code className="money">Authorization: Bearer &lt;key&gt;</code>.
+        </li>
+        <li>
+          Try: &ldquo;How did we do today compared to yesterday?&rdquo;, &ldquo;Who still owes us
+          money?&rdquo;, &ldquo;Refund $50 of Maya&apos;s last payment&rdquo;.
+        </li>
+        <li>
+          Money only moves when the client calls <code className="money">confirm_action</code>,
+          which is marked destructive, so Claude asks for your approval first. Proposals made over
+          MCP can only be confirmed with the same key. <strong>Revoke</strong> a key here when
+          you&apos;re done.
+        </li>
+      </ol>
+    </details>
   );
 }

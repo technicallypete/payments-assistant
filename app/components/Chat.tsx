@@ -170,7 +170,7 @@ export function Chat({ onActivity }: { onActivity?: () => void }) {
   const pending = visiblePending(state);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 md:flex-row">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 md:flex-row">
       <nav aria-label="Conversations" className="md:w-56 md:shrink-0">
         <button
           type="button"
@@ -198,7 +198,7 @@ export function Chat({ onActivity }: { onActivity?: () => void }) {
         </ul>
       </nav>
 
-      <section aria-label="Chat with Penny" className="sheet flex min-h-[28rem] flex-1 flex-col">
+      <section aria-label="Chat with Penny" className="sheet flex min-h-[28rem] min-w-0 flex-1 flex-col">
         <div className="flex-1 space-y-5 overflow-y-auto p-5" aria-live="polite" aria-busy={state.streaming}>
           {loadError && <p role="alert" className="text-sm text-margin">{loadError}</p>}
 

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ToastProvider } from "@/components/Toast";
 
-import { ConnectClaudePanel } from "./ConnectClaudePanel";
+import { ConnectMcpPanel } from "./ConnectMcpPanel";
 
 const KEY = "pak_live_secret_key_value_1234567890";
 const stored = {
@@ -58,7 +58,7 @@ function backend() {
 function renderPanel() {
   return render(
     <ToastProvider>
-      <ConnectClaudePanel />
+      <ConnectMcpPanel />
     </ToastProvider>,
   );
 }
@@ -68,7 +68,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("ConnectClaudePanel", () => {
+describe("ConnectMcpPanel", () => {
   it("shows a new key once, with copyable client config, then lists only its prefix", async () => {
     backend();
     renderPanel();
@@ -114,5 +114,18 @@ describe("ConnectClaudePanel", () => {
     expect(fetch).toHaveBeenCalledWith("/api/api-keys/k1", expect.objectContaining({ method: "DELETE" }));
     expect(await screen.findByText("No active keys.")).toBeTruthy();
     expect(screen.queryByText(KEY)).toBeNull();
+  });
+});
+
+
+describe("ConnectMcpPanel steps", () => {
+  it("shows the Connect MCP title and setup steps with a placeholder key", async () => {
+    backend();
+    renderPanel();
+    expect(await screen.findByText("No active keys.")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Connect MCP" })).toBeTruthy();
+    expect(screen.getByText("How to connect")).toBeTruthy();
+    expect(screen.getByText(/claude mcp add --transport http penny/)).toBeTruthy();
+    expect(screen.getByText(/pak_YOUR_KEY/)).toBeTruthy();
   });
 });

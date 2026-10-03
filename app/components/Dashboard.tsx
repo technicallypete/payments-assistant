@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { Chat } from "@/components/Chat";
-import { ConnectClaudePanel } from "@/components/ConnectClaudePanel";
+import { ConnectMcpPanel } from "@/components/ConnectMcpPanel";
 import { CustomersPanel } from "@/components/CustomersPanel";
 import { HandoffsPanel } from "@/components/HandoffsPanel";
 import { TodayPanel } from "@/components/TodayPanel";
@@ -53,14 +53,14 @@ export function Dashboard() {
         </header>
 
         <div className="grid flex-1 gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
-          <div className="flex min-h-0 flex-col gap-5">
+          <div className="flex min-h-0 min-w-0 flex-col gap-5">
             <Chat onActivity={bump} />
           </div>
-          <aside className="flex flex-col gap-5">
+          <aside className="flex min-w-0 flex-col gap-5">
             <TodayPanel />
             <HandoffsPanel refreshKey={tick} />
             <CustomersPanel refreshKey={tick} />
-            <ConnectClaudePanel />
+            <ConnectMcpPanel />
           </aside>
         </div>
       </div>
