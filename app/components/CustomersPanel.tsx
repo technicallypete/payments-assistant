@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { useToast } from "@/components/Toast";
 import { api, ApiError } from "@/lib/client";
+import { MONEY_MOVED_EVENT } from "@/lib/format";
 import type { Customer, Invite } from "@/lib/types";
 
 export function CustomersPanel({ refreshKey = 0 }: { refreshKey?: number }) {
@@ -28,6 +29,13 @@ export function CustomersPanel({ refreshKey = 0 }: { refreshKey?: number }) {
       alive = false;
     };
   }, [refreshKey]);
+
+  // A confirmed invoice changes what a customer owes: reload the balances.
+  useEffect(() => {
+    const onMoved = () => void load();
+    window.addEventListener(MONEY_MOVED_EVENT, onMoved);
+    return () => window.removeEventListener(MONEY_MOVED_EVENT, onMoved);
+  }, [load]);
 
   async function invite(c: Customer) {
     try {

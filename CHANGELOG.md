@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.0 (unreleased)
+
+In development on `staging`.
+
 ## 0.1.0 (2026-10-03)
 
 First release: Penny, an AI payments assistant for a small business on Stripe (test mode).

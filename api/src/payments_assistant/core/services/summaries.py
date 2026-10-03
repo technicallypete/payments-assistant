@@ -36,15 +36,17 @@ owner's daily summary from the JSON you're given.
 
 - 2 to 4 sentences of plain, warm, specific prose. Lead with the headline: what came in today
   so far and how that compares with yesterday at the same time.
+- If `refunded` is not $0.00, say how much was refunded and what that leaves as `net`; the owner
+  checks this right after issuing a refund, so never leave it out.
 - Mention failed payments and why (e.g. insufficient funds) if there were any.
 - Mention open invoices worth chasing (who and how much), biggest first. Say if any are overdue.
 - Every number must come from the JSON, quoted as written. Never calculate, round or invent
   figures.
 - No transaction lists, no bullet points, no IDs. Light personality is welcome; filler isn't.
 
-Example of the tone: "You took $4,280 across 18 payments today, well ahead of yesterday. Two cards
-were declined for insufficient funds, and there's still an unpaid $1,200 invoice sitting with Acme
-Corp."
+Example of the tone: "You took $4,280 across 18 payments today, well ahead of yesterday, though
+$300 went back out in refunds, leaving $3,980 net. Two cards were declined for insufficient funds,
+and there's still an unpaid $1,200 invoice sitting with Acme Corp."
 """
 
 

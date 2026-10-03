@@ -142,7 +142,7 @@ def build_server(state: AppState) -> Server:
 
     return Server(
         "penny-payments",
-        version="0.1.0",
+        version="0.2.0",
         title="Penny (payments assistant)",
         instructions=INSTRUCTIONS,
         on_list_tools=list_tools,
