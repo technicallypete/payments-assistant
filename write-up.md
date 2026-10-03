@@ -60,6 +60,15 @@ Money only moves through **propose → confirm**:
   that proposed it.
 - Execution uses Stripe idempotency keys, and proposals expire after 10 minutes.
 
+**Verified end to end on a real phone** (Telegram, linked as Maya):
+- Asked about another customer ("Is there a bluebird customer?"): refused, nothing revealed.
+- Typed a card number into chat: refused ("payments only go through a secure Stripe link").
+- Said "yes" to paying invoice Y9LILQ5F-0001: got a Stripe hosted-invoice link for $180.00.
+- Paid with test card 4242: about a minute later the webhook pushed "Payment received ✅ … paid in
+  full". The dashboard then showed Maya owing $0.00 and today's takings up by $180.
+
+<p align="center"><img src="docs/screenshots/telegram-payment.png" width="300" alt="Telegram run: privacy refusals, card-number refusal, payment link, and payment-received confirmation"></p>
+
 ## Challenges and how they were overcome
 
 - **Testing RLS honestly.** The first version of the tests would have passed while proving nothing,

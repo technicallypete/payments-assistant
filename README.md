@@ -98,6 +98,12 @@ The seed is **idempotent**: running it again creates nothing new. `--reset` dele
 - "show me Acme Corp's invoices" or "how much revenue did the business make?": politely refused, and nothing leaks.
 - `/logout` unlinks the account.
 
+<p align="center">
+  <img src="docs/screenshots/telegram-payment.png" width="320"
+       alt="Telegram: the bot refuses to discuss another customer and refuses card details in chat, sends a Stripe link for Maya's $180 invoice, then confirms 'Payment received' via the webhook">
+</p>
+<p align="center"><em>A real run on a phone: privacy refusals, no card details in chat, a Stripe link for the $180 invoice, then the webhook's "Payment received ✅".</em></p>
+
 **MCP (Claude Code):** create a key in **Connect MCP** (or `docker compose run --rm api uv run python -m payments_assistant.keys create --name me`), then:
 
 ```bash

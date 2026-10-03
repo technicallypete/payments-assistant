@@ -419,7 +419,7 @@ UI test); `.env` not tracked; `core/` imports nothing from `http/`, `bot/`, or `
 | C. Integration tests | ✅ (RLS as `bot`, HTTP, bot, webhook, MCP) |
 | D. Live checks | ✅ `-m stripe` passes, seed idempotent, eval 11/11 |
 | E. Brief requirements, owner side | ✅ live summary (matches the brief's example), refund proposal card in the browser, confirmed refund and invoice executed in Stripe (MCP, throwaway data), week-over-week via eval |
-| E. Brief requirements, customer Telegram | ⏳ **needs the user**: link via invite, "what do I owe?", pay $180 with 4242 → "Payment received ✅", Jordan $2,000 → handoff, privacy prompts |
+| E. Brief requirements, customer Telegram | ✅ verified by the user on a real phone (2026-10-03): invite link, privacy refusals, card number refused in chat, $180 Stripe link paid with 4242, "Payment received ✅" pushed by the webhook (screenshot: `docs/screenshots/telegram-payment.png`). Jordan's $2,000 handoff covered by integration tests and evals, not manually. |
 | F. Quality gates | ✅ |
 | G. Deliverables | ✅ README, write-up, commit history on `main`. ⚠️ Fresh **Stripe sandbox** run substituted by a fresh-DB clone run (see above) |
 
