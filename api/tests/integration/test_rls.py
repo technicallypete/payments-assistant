@@ -26,7 +26,7 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from payments_assistant.core.scoping import customer_scope
-from tests.integration.conftest import role_url
+from tests.db_fixtures import role_url
 
 pytestmark = pytest.mark.integration
 

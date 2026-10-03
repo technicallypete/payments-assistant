@@ -534,6 +534,13 @@ injection attempts) against 2–3 candidates and pin the winner in `.env.example
   (`pm_card_visa`, `pm_card_chargeDeclinedInsufficientFunds`) spread over today, yesterday, and the last
   two weeks, open invoices below and above $2,000, and a refund. It then upserts `customer_accounts`,
   creates the owner, and prints Telegram invite links.
+- **Demo data backdating (as built):** Stripe can't backdate charges, so the seed sets
+  `metadata.pa_occurred_at` (unix seconds) on each PaymentIntent, and it propagates to the charge.
+  Gateways use it as the payment's business time (`effective_created`); real payments use Stripe's
+  `created`. `--reset` can't delete charges, so it tags them `metadata.pa_hidden = "1"` and gateways
+  skip them. Both are documented in `write-up.md` as demo-only mechanisms.
+- **`send_invoice` needs a customer email** (Stripe rejects it otherwise). Seeded customers have
+  emails; the owner `create_invoice` tool must surface Stripe's error clearly when one is missing.
 
 ---
 

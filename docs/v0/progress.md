@@ -6,7 +6,7 @@ Tracks status against `docs/v0/goal.md`. Updated every loop iteration.
 
 | Limit | Cap | Used |
 |---|---|---|
-| Iterations | 15 | 2 |
+| Iterations | 15 | 3 |
 | OpenRouter `llm_eval` runs | 3 (~$2) | 0 |
 | Repeated-failure streak | 3 | 0 |
 
@@ -15,8 +15,8 @@ Tracks status against `docs/v0/goal.md`. Updated every loop iteration.
 | 0 Repo hygiene | 10m | 20m | ✅ done (by user before loop) |
 | 1 Skeleton | 45m | 90m | ✅ done (iteration 1) |
 | 2 DB schema, RLS | 45m | 90m | ✅ done (iteration 2) |
-| 3 Core + Stripe + seed | 50m | 100m | next |
-| 4 Tools + LLM + owner agent | 45m | 90m | |
+| 3 Core + Stripe + seed | 50m | 100m | ✅ done (iteration 3) |
+| 4 Tools + LLM + owner agent | 45m | 90m | next |
 | 5 Owner HTTP API + auth | 35m | 70m | |
 | 6 Next BFF + UI | 50m | 100m | |
 | 7 Telegram bot | 35m | 70m | |
@@ -92,3 +92,40 @@ constraints (9). The RLS suite runs as `bot`/`api`/`reporter`, never admin.
 Core coverage 96%. ruff check + format clean. No leftover test databases.
 
 **Next:** Phase 3 (Stripe gateways, core services, seed).
+
+### Iteration 3: Phase 3 (2026-10-03)
+
+Split across two subagents (live Stripe gateways + fakes; seed) while I wrote the contracts and
+core services.
+
+**Built:**
+- Contracts: `core/stripe_types.py` (pydantic models, integer minor units), `core/stripe_gateway.py`
+  (Owner/Customer gateway Protocols), `core/security.py` (token sha256, argon2id passwords).
+- `core/stripe_live.py` (subagent): SDK 16 async (`client.v1.*_async`), API `2026-09-30.endive`.
+  The customer gateway filters by customer in Stripe and re-checks ownership; unknown and foreign
+  objects raise the same `ForeignObjectError`.
+- `core/timeutil.py`: named periods and comparison windows in `BUSINESS_TIMEZONE` (DST-safe), and
+  due-date phrases ("next Friday" = first Friday strictly after today).
+- `core/services/`: `reporting` (stats the LLM narrates), `payments` (the $2,000 rule: link vs handoff,
+  dedupe of open links/handoffs), `actions` (propose → confirm/cancel/expire with idempotency keys,
+  surface/key binding), `invites`, `accounts`, `audit`.
+- `seed.py` (subagent): idempotent, `--reset`. The real seed ran twice against the test account: 7
+  customers, 26 payments, 2 declines, 5 invoices; second run created nothing. Today = $4,280 across 8
+  payments + 2 insufficient-funds declines (the brief's example); Acme owes $1,200 + $3,500; Jordan
+  $2,000 (boundary); Maya $180.
+
+**Fixes found in review:**
+- `actions.confirm` used to raise on expiry, which rolled back the `expired` status. It now returns the
+  expired action so the caller's transaction commits it.
+- The DB fixtures moved to a shared plugin (`tests/db_fixtures.py`) so integration and stripe_live
+  tests share one test DB. The fixture now drops its DB even when setup fails.
+
+**API quirks recorded (spec §7):** `pa_occurred_at` backdating, `pa_hidden` for reset charges,
+`send_invoice` needs a customer email, `StripeObject` is no longer a dict (use `.to_dict()`), PaymentIntents
+need `automatic_payment_methods` with `allow_redirects="never"`.
+
+**Verification:** `pytest -m "not llm_eval"` → **210 passed** (includes the live `-m stripe` tests against
+the real test account). Core coverage 95%. ruff clean. No leftover test DBs. The 14 warnings are an
+httpx deprecation inside the Stripe SDK.
+
+**Next:** Phase 4 (tool registry, LLM, streaming owner agent).
